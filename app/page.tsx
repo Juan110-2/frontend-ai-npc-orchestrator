@@ -256,7 +256,7 @@ export default function DashboardPage() {
                         {activityLabels[activity.action]}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                       {formatTimeAgo(activity.timestamp)}
                     </span>
                   </div>
