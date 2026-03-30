@@ -28,7 +28,21 @@ import {
   StopCircle
 } from "lucide-react"
 import { mockPerfiles, mockSesiones, mockProtopersonas, mockEscenarios } from "@/lib/mock-data"
-import type { ChatMessage, InterventionCategory, Sesion } from "@/lib/types"
+import type { InterventionCategory, Sesion } from "@/lib/types"
+
+// Local ChatMessage type for the chat UI
+interface ChatMessage {
+  id: string
+  sessionId: string
+  role: "user" | "assistant" | "system"
+  content: string
+  timestamp: string
+  metadata?: {
+    interventionCategory?: InterventionCategory
+    emotionalState?: string
+    riskFlags?: string[]
+  }
+}
 
 const INTERVENTION_OPTIONS: { value: InterventionCategory; label: string }[] = [
   { value: "supportive", label: "De Apoyo" },
@@ -81,7 +95,7 @@ export default function ChatPage() {
         id: "initial",
         sessionId: sesion?.id || "",
         role: "assistant",
-        content: `*${perfil.nombre} entra al consultorio y se sienta lentamente. Mira hacia el suelo sin hacer contacto visual.*\n\nHola... supongo que tengo que estar aqui.`,
+        content: `*${perfil.name.split(' ')[0]} entra al consultorio y se sienta lentamente. Mira hacia el suelo sin hacer contacto visual.*\n\nHola... supongo que tengo que estar aqui.`,
         timestamp: new Date().toISOString(),
         metadata: {
           emotionalState: "defensive",
@@ -176,7 +190,7 @@ export default function ChatPage() {
       <div className="flex flex-1 flex-col">
         <PageHeader
           title="Sesion de Practica"
-          description={`${perfil?.nombre || "Perfil"} - ${escenario?.nombre || "Escenario"}`}
+          description={`${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}`}
         >
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
@@ -352,8 +366,8 @@ export default function ChatPage() {
                 <ScrollArea className="h-full p-4">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold">{perfil?.nombre}</h3>
-                      <p className="text-sm text-muted-foreground">{perfil?.edad} anos</p>
+                      <h3 className="text-lg font-semibold">{perfil?.name || "Perfil no encontrado"}</h3>
+                      <p className="text-sm text-muted-foreground">{perfil?.contextualData?.age ? `${perfil.contextualData.age} anos` : "Edad no especificada"}</p>
                     </div>
                     
                     <Separator />
@@ -361,27 +375,31 @@ export default function ChatPage() {
                     <div className="space-y-3">
                       <div>
                         <h4 className="text-sm font-medium text-muted-foreground">Protopersona Base</h4>
-                        <p className="text-sm">{protopersona?.nombre}</p>
+                        <p className="text-sm">{protopersona?.name || "No especificado"}</p>
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground">Presentacion Clinica</h4>
-                        <p className="text-sm">{protopersona?.presentacionClinica}</p>
+                        <h4 className="text-sm font-medium text-muted-foreground">Objetivo Pedagogico</h4>
+                        <p className="text-sm">{protopersona?.pedagogicalObjective || "No especificado"}</p>
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground">Severidad</h4>
-                        <SeverityBadge level={protopersona?.severidadBase || 1} />
+                        <h4 className="text-sm font-medium text-muted-foreground">Rango de Severidad</h4>
+                        <div className="flex items-center gap-2">
+                          <SeverityBadge level={protopersona?.behaviorRange?.min || 1} size="sm" />
+                          <span className="text-xs text-muted-foreground">a</span>
+                          <SeverityBadge level={protopersona?.behaviorRange?.max || 1} size="sm" />
+                        </div>
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground">Rasgos de Personalidad</h4>
+                        <h4 className="text-sm font-medium text-muted-foreground">Disparadores</h4>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {protopersona?.rasgosPersonalidad.slice(0, 3).map((rasgo) => (
-                            <Badge key={rasgo} variant="secondary" className="text-xs">
-                              {rasgo}
+                          {protopersona?.triggers?.slice(0, 3).map((trigger) => (
+                            <Badge key={trigger.id} variant="secondary" className="text-xs">
+                              {trigger.name}
                             </Badge>
-                          ))}
+                          )) || <span className="text-xs text-muted-foreground">No disponible</span>}
                         </div>
                       </div>
                     </div>
@@ -406,40 +424,51 @@ export default function ChatPage() {
                 <ScrollArea className="h-full p-4">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold">{escenario?.nombre}</h3>
-                      <Badge variant="outline" className="mt-1">{escenario?.tipo}</Badge>
+                      <h3 className="text-lg font-semibold">{escenario?.name || "Escenario"}</h3>
+                      <Badge variant="outline" className="mt-1">
+                        Severidad inicial: {escenario?.initialSeverity || "N/A"}
+                      </Badge>
                     </div>
                     
                     <Separator />
                     
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Descripcion</h4>
-                      <p className="mt-1 text-sm">{escenario?.descripcion}</p>
+                      <p className="mt-1 text-sm">{escenario?.description || "No disponible"}</p>
                     </div>
                     
                     <div>
-                      <h4 className="text-sm font-medium text-muted-foreground">Objetivos de Aprendizaje</h4>
-                      <ul className="mt-2 space-y-2">
-                        {escenario?.objetivosAprendizaje.map((objetivo, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                            <span>{objetivo}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <h4 className="text-sm font-medium text-muted-foreground">Contexto de la Situacion</h4>
+                      <p className="mt-1 text-sm">{escenario?.situationContext || "No disponible"}</p>
                     </div>
                     
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground">Criterios de Evaluacion</h4>
-                      <ul className="mt-2 space-y-2">
-                        {escenario?.criteriosEvaluacion.map((criterio, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>{criterio}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    {escenario?.riskFlags && escenario.riskFlags.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground">Banderas de Riesgo</h4>
+                        <ul className="mt-2 space-y-2">
+                          {escenario.riskFlags.map((flag) => (
+                            <li key={flag.id} className="flex items-start gap-2 text-sm">
+                              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                              <span>{flag.description}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {escenario?.restrictions && escenario.restrictions.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground">Restricciones</h4>
+                        <ul className="mt-2 space-y-2">
+                          {escenario.restrictions.map((restriction) => (
+                            <li key={restriction.id} className="flex items-start gap-2 text-sm">
+                              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span>{restriction.description}: {restriction.value}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
               </TabsContent>
