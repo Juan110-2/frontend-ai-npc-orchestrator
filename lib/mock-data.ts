@@ -21,9 +21,9 @@ import type {
 export const mockProtopersonas: Protopersona[] = [
   {
     id: 'proto-1',
-    name: 'Paciente Ansioso',
-    pedagogicalObjective: 'Entrenar la identificación de patrones de ansiedad generalizada y respuestas terapéuticas apropiadas',
-    description: 'Perfil base para simular pacientes con trastorno de ansiedad generalizada',
+    name: 'Perfil Ansioso Situacional',
+    pedagogicalObjective: 'Entrenar la identificacion de patrones de ansiedad y respuestas de contencion en interacciones situacionales',
+    description: 'Molde base para simular personas con alta activacion ante incertidumbre',
     triggers: [
       { id: 't1', name: 'Incertidumbre', description: 'Situaciones con resultados impredecibles', severityImpact: 2 },
       { id: 't2', name: 'Evaluación social', description: 'Percepción de ser juzgado por otros', severityImpact: 1 },
@@ -57,9 +57,9 @@ export const mockProtopersonas: Protopersona[] = [
   },
   {
     id: 'proto-2',
-    name: 'Paciente Depresivo',
-    pedagogicalObjective: 'Practicar abordaje de síntomas depresivos y activación conductual',
-    description: 'Perfil base para simular pacientes con episodio depresivo mayor',
+    name: 'Perfil de Desanimo Persistente',
+    pedagogicalObjective: 'Practicar abordaje de desanimo sostenido y activacion conductual gradual',
+    description: 'Molde base para simular personas con baja energia y retraimiento',
     triggers: [
       { id: 't1', name: 'Pérdida', description: 'Recordatorios de pérdidas significativas', severityImpact: 2 },
       { id: 't2', name: 'Rechazo', description: 'Experiencias reales o percibidas de rechazo', severityImpact: 2 },
@@ -130,7 +130,7 @@ export const mockPerfiles: Perfil[] = [
     id: 'perf-1',
     name: 'María García - Ansiedad Laboral',
     protopersonaId: 'proto-1',
-    protopersonaName: 'Paciente Ansioso',
+    protopersonaName: 'Perfil Ansioso Situacional',
     contextualData: {
       age: 34,
       gender: 'Femenino',
@@ -150,7 +150,7 @@ export const mockPerfiles: Perfil[] = [
     id: 'perf-2',
     name: 'Carlos Mendoza - Duelo',
     protopersonaId: 'proto-2',
-    protopersonaName: 'Paciente Depresivo',
+    protopersonaName: 'Perfil de Desanimo Persistente',
     contextualData: {
       age: 52,
       gender: 'Masculino',
@@ -190,7 +190,7 @@ export const mockPerfiles: Perfil[] = [
     id: 'perf-4',
     name: 'María García - Variante Postvacacional',
     protopersonaId: 'proto-1',
-    protopersonaName: 'Paciente Ansioso',
+    protopersonaName: 'Perfil Ansioso Situacional',
     contextualData: {
       age: 34,
       gender: 'Femenino',
@@ -216,9 +216,9 @@ export const mockPerfiles: Perfil[] = [
 export const mockEscenarios: Escenario[] = [
   {
     id: 'esc-1',
-    name: 'Primera Consulta - Evaluación Inicial',
-    description: 'Escenario de primera sesión para establecer rapport y evaluar motivo de consulta',
-    situationContext: 'El paciente acude a consulta por primera vez. No ha tenido experiencia previa con terapia psicológica. Viene referido por su médico de cabecera.',
+    name: 'Inicio de Simulacion - Contexto Inicial',
+    description: 'Escenario inicial para establecer contexto y linea base de comportamiento',
+    situationContext: 'La persona entra por primera vez en una interaccion guiada y expresa dificultad para ordenar lo que siente.',
     initialSeverity: 3,
     riskFlags: [],
     restrictions: [
@@ -232,7 +232,7 @@ export const mockEscenarios: Escenario[] = [
     id: 'esc-2',
     name: 'Crisis Aguda - Intervención',
     description: 'Escenario de alta intensidad emocional que requiere intervención en crisis',
-    situationContext: 'El paciente llega a sesión visiblemente alterado después de un evento estresante significativo (pérdida de empleo, ruptura, conflicto grave).',
+    situationContext: 'La persona llega visiblemente alterada despues de un evento estresante significativo (perdida de empleo, ruptura, conflicto grave).',
     initialSeverity: 4,
     riskFlags: [
       { id: 'rf-1', type: 'crisis', description: 'Paciente en estado de crisis aguda', severity: 4, active: true },
@@ -246,9 +246,9 @@ export const mockEscenarios: Escenario[] = [
   },
   {
     id: 'esc-3',
-    name: 'Sesión de Seguimiento - Progreso',
-    description: 'Sesión de seguimiento para evaluar progreso terapéutico',
-    situationContext: 'Quinta sesión del proceso terapéutico. El paciente ha mostrado mejoría gradual y ha implementado algunas técnicas aprendidas.',
+    name: 'Seguimiento de Simulacion - Progreso',
+    description: 'Escenario de seguimiento para evaluar progresion de comportamiento',
+    situationContext: 'Quinta interaccion del proceso. La persona ha mostrado mejoria gradual y aplica algunas estrategias de regulacion.',
     initialSeverity: 2,
     riskFlags: [],
     restrictions: [],
@@ -283,7 +283,7 @@ export const mockSesiones: Sesion[] = [
     perfilId: 'perf-1',
     perfilName: 'María García - Ansiedad Laboral',
     escenarioId: 'esc-1',
-    escenarioName: 'Primera Consulta - Evaluación Inicial',
+    escenarioName: 'Inicio de Simulacion - Contexto Inicial',
     status: 'completed',
     state: {
       currentSeverity: 2,

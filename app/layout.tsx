@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { AppSidebar } from '@/components/app-sidebar'
+import { AppShell } from '@/components/app-shell'
 import { Toaster } from '@/components/ui/sonner'
+import { AuthProvider } from '@/lib/auth-context'
 import './globals.css'
 
 const inter = Inter({ 
@@ -17,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'PsicoSim - Plataforma de Simulacion Conversacional',
-  description: 'Plataforma academica de simulacion conversacional en psicologia para entrenamiento de estudiantes y docentes',
+  description: 'Plataforma academica de simulacion situacional para entrenamiento de comunicacion y regulacion emocional',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -53,14 +54,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${geistMono.variable}`}>
       <body className="font-sans antialiased">
-        <div className="flex min-h-screen">
-          <AppSidebar />
-          <main className="ml-64 flex-1 transition-all duration-300">
-            <div className="min-h-screen bg-background">
-              {children}
-            </div>
-          </main>
-        </div>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
         <Toaster />
         <Analytics />
       </body>

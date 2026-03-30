@@ -109,13 +109,13 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
                 Ver detalle
               </DropdownMenuItem>
               {sesion.status === 'active' && (
-                <DropdownMenuItem onClick={() => router.push(`/chat?session=${sesion.id}`)}>
+                <DropdownMenuItem onClick={() => router.push(`/chat?sesion=${sesion.id}`)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Continuar chat
                 </DropdownMenuItem>
               )}
               {sesion.status === 'paused' && (
-                <DropdownMenuItem onClick={() => router.push(`/chat?session=${sesion.id}`)}>
+                <DropdownMenuItem onClick={() => router.push(`/chat?sesion=${sesion.id}`)}>
                   <Play className="mr-2 h-4 w-4" />
                   Reanudar sesion
                 </DropdownMenuItem>
@@ -170,7 +170,7 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
             {formatDate(sesion.startedAt)}
           </span>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={sesion.status === 'active' ? `/chat?session=${sesion.id}` : `/sesiones/${sesion.id}`}>
+            <Link href={sesion.status === 'active' ? `/chat?sesion=${sesion.id}` : `/sesiones/${sesion.id}`}>
               {sesion.status === 'active' ? 'Continuar' : 'Ver detalle'}
             </Link>
           </Button>
@@ -200,13 +200,13 @@ export default function SesionesPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Sesiones"
         description="Historial de sesiones de simulacion y chat activas"
         action={{
           label: 'Nueva Sesion',
-          onClick: () => router.push('/chat'),
+          onClick: () => router.push('/chat?setup=1'),
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
       />
@@ -269,8 +269,8 @@ export default function SesionesPage() {
 
       {/* Tabs and Filters */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
+          <TabsList className="w-full overflow-x-auto whitespace-nowrap sm:w-auto">
             <TabsTrigger value="all">Todas ({counts.all})</TabsTrigger>
             <TabsTrigger value="active">Activas ({counts.active})</TabsTrigger>
             <TabsTrigger value="paused">Pausadas ({counts.paused})</TabsTrigger>
@@ -304,7 +304,7 @@ export default function SesionesPage() {
           }
           action={!searchQuery ? {
             label: 'Nueva Sesion',
-            onClick: () => router.push('/chat'),
+            onClick: () => router.push('/chat?setup=1'),
             icon: <Plus className="mr-2 h-4 w-4" />,
           } : undefined}
         />

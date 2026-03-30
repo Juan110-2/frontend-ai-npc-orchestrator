@@ -150,10 +150,10 @@ export default function EscenariosPage() {
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Escenarios"
-        description="Contextos de situacion para simulaciones de sesiones terapeuticas"
+        description="Contextos de situacion para simulaciones e interacciones conductuales"
         action={{
           label: 'Nuevo Escenario',
           onClick: () => router.push('/escenarios/new'),
@@ -162,8 +162,8 @@ export default function EscenariosPage() {
       />
 
       {/* Filters */}
-      <div className="mb-6 flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar escenarios..."
@@ -172,7 +172,7 @@ export default function EscenariosPage() {
             className="pl-9"
           />
         </div>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" className="self-start sm:self-auto">
           <Filter className="h-4 w-4" />
         </Button>
       </div>

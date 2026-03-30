@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { mockProtopersonas } from '@/lib/mock-data';
 import type { Protopersona } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,10 @@ function NewPerfilContent() {
   const [familyContext, setFamilyContext] = useState('');
   const [socialContext, setSocialContext] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
+  const [baseState, setBaseState] = useState('');
+  const [triggers, setTriggers] = useState('');
+  const [regulators, setRegulators] = useState('');
+  const [severityRules, setSeverityRules] = useState('');
   const [notes, setNotes] = useState('');
   const [customFields, setCustomFields] = useState<{ key: string; value: string }[]>([
     { key: '', value: '' }
@@ -80,7 +85,7 @@ function NewPerfilContent() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Back link */}
       <Link 
         href="/perfiles" 
@@ -92,7 +97,7 @@ function NewPerfilContent() {
 
       <h1 className="text-2xl font-semibold tracking-tight">Nuevo Perfil</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Crea una instancia de paciente a partir de una protopersona
+        Crea un personaje para simulaciones situacionales a partir de un molde
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -162,23 +167,24 @@ function NewPerfilContent() {
             </CardContent>
           </Card>
 
-          {/* Profile Information */}
+          {/* Identity block */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Informacion del Perfil</CardTitle>
+              <CardTitle className="text-base">Bloque 1: Identidad funcional</CardTitle>
               <CardDescription>
-                Define los datos identificatorios de este paciente simulado
+                Define los datos base del personaje para la simulacion
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nombre del Perfil *</Label>
+                <Label htmlFor="name">Nombre del perfil *</Label>
                 <Input
                   id="name"
-                  placeholder="ej. Maria Garcia - Ansiedad Laboral"
+                  placeholder="ej. Maria Garcia - Entorno laboral exigente"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
+                {!name && <p className="text-xs text-muted-foreground">Este campo es obligatorio.</p>}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -215,45 +221,103 @@ function NewPerfilContent() {
             </CardContent>
           </Card>
 
-          {/* Contextual Information */}
+          {/* Situational context block */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Contexto</CardTitle>
+              <CardTitle className="text-base">Bloque 2: Contexto situacional</CardTitle>
               <CardDescription>
-                Informacion contextual que influye en el comportamiento del paciente
+                Factores del entorno que influyen en la reaccion del personaje
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Accordion type="single" collapsible defaultValue="family" className="w-full">
+                <AccordionItem value="family">
+                  <AccordionTrigger>Contexto familiar</AccordionTrigger>
+                  <AccordionContent>
+                    <Textarea
+                      id="family"
+                      placeholder="ej. Vive con su madre y dos hermanos..."
+                      value={familyContext}
+                      onChange={(e) => setFamilyContext(e.target.value)}
+                      rows={2}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="social">
+                  <AccordionTrigger>Contexto social</AccordionTrigger>
+                  <AccordionContent>
+                    <Textarea
+                      id="social"
+                      placeholder="ej. Red de apoyo limitada, aislamiento reciente..."
+                      value={socialContext}
+                      onChange={(e) => setSocialContext(e.target.value)}
+                      rows={2}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="history">
+                  <AccordionTrigger>Antecedentes relevantes</AccordionTrigger>
+                  <AccordionContent>
+                    <Textarea
+                      id="medical"
+                      placeholder="ej. Eventos previos que afectan su reaccion actual..."
+                      value={medicalHistory}
+                      onChange={(e) => setMedicalHistory(e.target.value)}
+                      rows={2}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
+          </Card>
+
+          {/* Behavior block */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Bloque 3: Comportamiento situacional</CardTitle>
+              <CardDescription>
+                Define estado base, disparadores y reglas de evolucion por severidad.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="family">Contexto Familiar</Label>
+                <Label htmlFor="base-state">Estado base</Label>
                 <Textarea
-                  id="family"
-                  placeholder="ej. Casada, dos hijos pequenos..."
-                  value={familyContext}
-                  onChange={(e) => setFamilyContext(e.target.value)}
+                  id="base-state"
+                  placeholder="ej. Mantiene tono reservado y responde con frases breves al inicio..."
+                  value={baseState}
+                  onChange={(e) => setBaseState(e.target.value)}
                   rows={2}
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="social">Contexto Social</Label>
+                <Label htmlFor="triggers">Disparadores</Label>
                 <Textarea
-                  id="social"
-                  placeholder="ej. Red de apoyo limitada, familia extendida en otra ciudad..."
-                  value={socialContext}
-                  onChange={(e) => setSocialContext(e.target.value)}
+                  id="triggers"
+                  placeholder="ej. Ambiguedad, presion social, lenguaje frio..."
+                  value={triggers}
+                  onChange={(e) => setTriggers(e.target.value)}
                   rows={2}
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="medical">Historia Medica</Label>
+                <Label htmlFor="regulators">Reguladores</Label>
                 <Textarea
-                  id="medical"
-                  placeholder="ej. Sin antecedentes psiquiatricos previos..."
-                  value={medicalHistory}
-                  onChange={(e) => setMedicalHistory(e.target.value)}
+                  id="regulators"
+                  placeholder="ej. Validacion, preguntas claras, ritmo pausado..."
+                  value={regulators}
+                  onChange={(e) => setRegulators(e.target.value)}
                   rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rules">Reglas de comportamiento por severidad</Label>
+                <Textarea
+                  id="rules"
+                  placeholder="ej. S1 habla con claridad, S3 ambivalencia, S5 cierre por seguridad..."
+                  value={severityRules}
+                  onChange={(e) => setSeverityRules(e.target.value)}
+                  rows={3}
                 />
               </div>
             </CardContent>
@@ -264,7 +328,7 @@ function NewPerfilContent() {
             <CardHeader>
               <CardTitle className="text-base">Campos Personalizados</CardTitle>
               <CardDescription>
-                Agrega informacion adicional especifica para este perfil
+                Agrega datos puntuales para diferenciar este personaje
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -309,12 +373,12 @@ function NewPerfilContent() {
             <CardHeader>
               <CardTitle className="text-base">Notas</CardTitle>
               <CardDescription>
-                Observaciones adicionales sobre este perfil
+                Observaciones para la simulacion (uso interno)
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="Notas clinicas, consideraciones especiales, etc..."
+                placeholder="Notas de simulacion, ajustes y consideraciones..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
@@ -356,6 +420,14 @@ function NewPerfilContent() {
                     <span className="text-muted-foreground">Opcional</span>
                   )}
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Comportamiento situacional</span>
+                  {(baseState || triggers || regulators || severityRules) ? (
+                    <Check className="h-4 w-4 text-success" />
+                  ) : (
+                    <span className="text-muted-foreground">Recomendado</span>
+                  )}
+                </div>
               </div>
 
               <Separator />
@@ -377,12 +449,12 @@ function NewPerfilContent() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-3">
               <p>
-                Un <strong>Perfil</strong> es una instancia especifica de una protopersona 
-                con datos contextuales que personalizan la simulacion.
+                Un <strong>Perfil</strong> es una instancia de comportamiento situacional
+                creada desde un molde base.
               </p>
               <p>
-                Los datos que agregues aqui se utilizaran para dar contexto 
-                al modelo durante las sesiones de chat.
+                Este formulario esta organizado por bloques para reducir friccion y mantener
+                consistencia entre personajes.
               </p>
               <p>
                 Puedes clonar perfiles existentes para crear variaciones 

@@ -1,98 +1,144 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
-  Users,
   UserCircle,
   Map,
-  MessageSquare,
   ClipboardCheck,
-  Settings,
   Play,
-  ChevronLeft,
-  ChevronRight,
+  LogOut,
+  Menu,
   Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useAuth } from '@/lib/auth-context';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Protopersonas', href: '/protopersonas', icon: Brain },
+  { name: 'Moldes', href: '/protopersonas', icon: Brain },
   { name: 'Perfiles', href: '/perfiles', icon: UserCircle },
   { name: 'Escenarios', href: '/escenarios', icon: Map },
   { name: 'Sesiones', href: '/sesiones', icon: Play },
-  { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Evaluacion', href: '/evaluacion', icon: ClipboardCheck },
-  { name: 'Configuracion', href: '/configuracion', icon: Settings },
 ];
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+};
+
+export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { userEmail, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/auth/login');
+  };
+
+  const navItems = (compact = false) => (
+    <nav className={cn('space-y-1 px-3 py-4', compact && 'px-2')}>
+      {navigation.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            title={compact ? item.name : undefined}
+            className={cn(
+              'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              compact && 'justify-center px-2',
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+            )}
+          >
+            <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-sidebar-primary')} />
+            {!compact && <span>{item.name}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col bg-sidebar text-sidebar-foreground transition-all duration-300',
-        collapsed ? 'w-16' : 'w-64'
-      )}
-    >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-        {!collapsed && (
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Brain className="h-5 w-5 text-sidebar-primary-foreground" />
+    <>
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-sidebar px-3 text-sidebar-foreground md:hidden">
+        <Link href="/" className="text-base font-semibold tracking-tight">
+          AI Orchestrator
+        </Link>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-sidebar-foreground hover:bg-sidebar-accent">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 border-r bg-sidebar text-sidebar-foreground">
+            <SheetHeader>
+              <SheetTitle className="text-sidebar-foreground">Menu</SheetTitle>
+            </SheetHeader>
+            {navItems()}
+            <div className="border-t border-sidebar-border p-3">
+              <p className="mb-3 truncate text-xs text-sidebar-foreground/60">{userEmail}</p>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesion
+              </Button>
             </div>
-            <span className="text-lg font-semibold tracking-tight">PsicoSim</span>
-          </Link>
-        )}
-        {collapsed && (
-          <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Brain className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
-        )}
-      </div>
+          </SheetContent>
+        </Sheet>
+      </header>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-              )}
-              title={collapsed ? item.name : undefined}
-            >
-              <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-sidebar-primary')} />
-              {!collapsed && <span>{item.name}</span>}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-30 hidden h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 md:flex',
+          isCollapsed ? 'w-20' : 'w-64'
+        )}
+      >
+        <div className={cn('flex h-16 items-center border-b border-sidebar-border px-4', isCollapsed && 'justify-center px-2')}>
+          {!isCollapsed && (
+            <Link href="/" className="text-lg font-semibold tracking-tight">
+              AI Orchestrator
             </Link>
-          );
-        })}
-      </nav>
-
-      {/* Collapse toggle */}
-      <div className="border-t border-sidebar-border p-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className="w-full justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          {!collapsed && <span className="ml-2">Colapsar</span>}
-        </Button>
-      </div>
-    </aside>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn('text-sidebar-foreground hover:bg-sidebar-accent', isCollapsed ? 'ml-0' : 'ml-auto')}
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expandir menu' : 'Colapsar menu'}
+            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Colapsar menu lateral'}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto">{navItems(isCollapsed)}</div>
+        <div className={cn('border-t border-sidebar-border p-3', isCollapsed && 'px-2')}>
+          {!isCollapsed && <p className="mb-3 truncate text-xs text-sidebar-foreground/60">{userEmail}</p>}
+          <Button
+            variant="ghost"
+            className={cn(
+              'w-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+              isCollapsed ? 'justify-center px-2' : 'justify-start'
+            )}
+            onClick={handleLogout}
+            title={isCollapsed ? 'Cerrar sesion' : undefined}
+          >
+            <LogOut className={cn('h-4 w-4', !isCollapsed && 'mr-2')} />
+            {!isCollapsed && 'Cerrar sesion'}
+          </Button>
+        </div>
+      </aside>
+    </>
   );
 }

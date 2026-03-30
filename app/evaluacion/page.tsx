@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -105,7 +105,7 @@ const EVALUATION_CRITERIA = [
   { id: "technique", label: "Tecnica", description: "Uso apropiado de tecnicas terapeuticas" }
 ]
 
-export default function EvaluacionPage() {
+function EvaluacionPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("sesion")
@@ -150,7 +150,7 @@ export default function EvaluacionPage() {
     <div className="min-h-screen">
       <PageHeader
         title="Evaluacion de Sesion"
-        description={`${perfil?.nombre} - ${escenario?.nombre}`}
+        description={`${perfil?.name || 'Perfil'} - ${escenario?.name || 'Escenario'}`}
         breadcrumbs={[
           { label: "Sesiones", href: "/sesiones" },
           { label: "Evaluacion" }
@@ -446,7 +446,7 @@ export default function EvaluacionPage() {
                             <Bot className="h-5 w-5" />
                           </div>
                           <div className="flex-1 space-y-2">
-                            <span className="text-sm font-medium">{perfil?.nombre}</span>
+                            <span className="text-sm font-medium">{perfil?.name || 'Perfil'}</span>
                             <div className="rounded-2xl border bg-card px-4 py-3">
                               <p className="whitespace-pre-wrap text-sm">{highlight.aiResponse}</p>
                             </div>
@@ -545,5 +545,13 @@ export default function EvaluacionPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function EvaluacionPage() {
+  return (
+    <Suspense fallback={<div className="p-4 sm:p-6 lg:p-8">Cargando evaluacion...</div>}>
+      <EvaluacionPageContent />
+    </Suspense>
   )
 }

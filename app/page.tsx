@@ -24,20 +24,20 @@ import { cn } from '@/lib/utils';
 
 const statCards = [
   {
-    title: 'Protopersonas',
-    value: mockDashboardStats.protopersonasCount,
-    description: 'Moldes conductuales',
-    icon: Brain,
-    href: '/protopersonas',
+    title: 'Perfiles',
+    value: mockDashboardStats.perfilesCount,
+    description: 'Personajes configurados',
+    icon: UserCircle,
+    href: '/perfiles',
     color: 'text-chart-1',
     bgColor: 'bg-chart-1/10',
   },
   {
-    title: 'Perfiles',
-    value: mockDashboardStats.perfilesCount,
-    description: 'Instancias activas',
-    icon: UserCircle,
-    href: '/perfiles',
+    title: 'Moldes',
+    value: mockDashboardStats.protopersonasCount,
+    description: 'Plantillas internas',
+    icon: Brain,
+    href: '/protopersonas',
     color: 'text-chart-2',
     bgColor: 'bg-chart-2/10',
   },
@@ -63,10 +63,10 @@ const statCards = [
 
 const quickActions = [
   { 
-    title: 'Nueva Protopersona', 
-    description: 'Crear molde conductual', 
-    href: '/protopersonas/new',
-    icon: Brain,
+    title: 'Nuevo Perfil', 
+    description: 'Crear personaje situacional', 
+    href: '/perfiles/new',
+    icon: UserCircle,
   },
   { 
     title: 'Iniciar Sesion', 
@@ -76,7 +76,7 @@ const quickActions = [
   },
   { 
     title: 'Ver Evaluaciones', 
-    description: 'Analizar resultados', 
+    description: 'Revisar desempeno', 
     href: '/evaluacion',
     icon: ClipboardCheck,
   },
@@ -116,10 +116,10 @@ const activityLabels = {
 
 export default function DashboardPage() {
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Dashboard"
-        description="Vista general de la plataforma de simulacion conversacional"
+        description="Vista general de simulaciones situacionales y comportamiento"
       />
 
       {/* Stats Grid */}
@@ -147,11 +147,11 @@ export default function DashboardPage() {
       {/* Main Content Grid */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Active Sessions */}
-        <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-base font-medium">Sesiones Recientes</CardTitle>
-              <CardDescription>Ultimas sesiones de simulacion</CardDescription>
+              <CardDescription>Ultimas simulaciones ejecutadas</CardDescription>
             </div>
             <Link href="/sesiones">
               <Button variant="ghost" size="sm">
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium">Acciones Rapidas</CardTitle>
-            <CardDescription>Accesos directos frecuentes</CardDescription>
+            <CardDescription>Flujos principales</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -266,12 +266,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Protopersonas Overview */}
+        {/* Moldes internos */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-base font-medium">Protopersonas</CardTitle>
-              <CardDescription>Moldes conductuales disponibles</CardDescription>
+              <CardTitle className="text-base font-medium">Moldes de Comportamiento</CardTitle>
+              <CardDescription>Plantillas internas para generar perfiles</CardDescription>
             </div>
             <Link href="/protopersonas">
               <Button variant="ghost" size="sm">
