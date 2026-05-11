@@ -16,6 +16,9 @@ type AuthContextValue = {
   // Retorna el access_token para enviarlo al backend FastAPI
   getAccessToken: () => Promise<string | null>
   login: (email: string, password: string, role?: UserRole) => Promise<void>
+  loginWithGoogle: () => Promise<void>
+  sendMagicLink: (email: string) => Promise<void>
+  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -29,32 +32,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>('student')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Extraer el rol desde los metadatos del usuario de Supabase
-  const extractRole = (u: User | null): UserRole => {
-    const raw = u?.user_metadata?.role
-    if (raw === 'teacher' || raw === 'admin') return raw
-    return 'student'
-  }
-
+  // 1. Sincronizar user/session con Supabase Auth
   useEffect(() => {
-    // Cargar sesión inicial
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s)
       setUser(s?.user ?? null)
-      setUserRole(extractRole(s?.user ?? null))
-      setIsLoading(false)
+      if (!s) setIsLoading(false)
     })
 
-    // Suscribirse a cambios de sesión (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
-      setUserRole(extractRole(s?.user ?? null))
-      setIsLoading(false)
+      if (!s) {
+        setUserRole('student')
+        setIsLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // 2. Cada vez que cambia el user, obtener su rol real
+  useEffect(() => {
+    if (!user) return
+
+    const supabase = createClient()
+
+    // Primero intentar desde user_metadata (disponible en el JWT, sin llamada extra)
+    const metaRole = user.user_metadata?.role
+    if (metaRole === 'teacher' || metaRole === 'admin') {
+      setUserRole(metaRole)
+      setIsLoading(false)
+      return
+    }
+
+    // Si no está en metadata, consultar la tabla user_profiles
+    supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        const raw = data?.role
+        if (raw === 'teacher' || raw === 'admin') setUserRole(raw)
+        else setUserRole('student')
+      })
+      .catch(() => setUserRole('student'))
+      .finally(() => setIsLoading(false))
+  }, [user?.id])
 
   const login = useCallback(async (
     email: string,
@@ -86,6 +111,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
+  const sendMagicLink = useCallback(async (email: string) => {
+    if (!email.trim()) throw new Error('Ingresa tu correo electrónico')
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) throw new Error(error.message)
+  }, [supabase])
+
+  const loginWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          // Pedir refresh_token para sesiones de larga duración
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    })
+    if (error) throw new Error(error.message)
+    // El navegador redirige a Google — no hay retorno síncrono
+  }, [supabase])
+
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole = 'student',
+  ) => {
+    if (!email.trim() || !password.trim() || !name.trim()) {
+      throw new Error('Todos los campos son obligatorios')
+    }
+    if (password.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres')
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { role, full_name: name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      if (error.message.includes('User already registered')) {
+        throw new Error('Ya existe una cuenta con ese correo')
+      }
+      throw new Error(error.message)
+    }
+  }, [supabase])
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
   }, [supabase])
@@ -105,9 +187,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userRole,
       getAccessToken,
       login,
+      loginWithGoogle,
+      sendMagicLink,
+      register,
       logout,
     }),
-    [user, session, userRole, isLoading, getAccessToken, login, logout],
+    [user, session, userRole, isLoading, getAccessToken, login, loginWithGoogle, sendMagicLink, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

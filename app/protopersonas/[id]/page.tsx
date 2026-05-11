@@ -113,14 +113,14 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
             <CardContent>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">Minimo:</span>
+                  <span className="text-sm text-muted-foreground">Mínimo:</span>
                   <SeverityBadge level={protopersona.behaviorRange.min} />
                 </div>
                 <div className="flex-1">
                   <SeverityIndicator level={protopersona.behaviorRange.max} />
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">Maximo:</span>
+                  <span className="text-sm text-muted-foreground">Máximo:</span>
                   <SeverityBadge level={protopersona.behaviorRange.max} />
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
                 <Shield className="h-4 w-4 text-success" />
                 Reguladores
               </CardTitle>
-              <CardDescription>Tecnicas y recursos que ayudan a reducir la intensidad emocional</CardDescription>
+              <CardDescription>Técnicas y recursos que ayudan a reducir la intensidad emocional</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -203,7 +203,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Reacciones a Intervenciones</CardTitle>
-              <CardDescription>Como responde la protopersona a diferentes tipos de intervencion terapeutica</CardDescription>
+              <CardDescription>Cómo responde la protopersona a diferentes tipos de intervención terapéutica</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -255,7 +255,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
                 <AlertTriangle className="h-4 w-4 text-warning" />
                 Criterios de Cierre
               </CardTitle>
-              <CardDescription>Condiciones para finalizar la sesion</CardDescription>
+              <CardDescription>Condiciones para finalizar la sesión</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -272,7 +272,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
                     )}
                     <div>
                       <p className="text-sm font-medium capitalize">
-                        {rule.criteria === 'improvement' && 'Mejoria'}
+                        {rule.criteria === 'improvement' && 'Mejoría'}
                         {rule.criteria === 'deterioration' && 'Deterioro'}
                         {rule.criteria === 'risk' && 'Riesgo'}
                       </p>
@@ -290,7 +290,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
           {/* Quick Stats */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Estadisticas</CardTitle>
+              <CardTitle className="text-base">Estadísticas</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -305,7 +305,7 @@ export default function ProtopersonaDetailPage({ params }: { params: Promise<{ i
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Puntuacion promedio</span>
+                  <span className="text-sm text-muted-foreground">Puntuación promedio</span>
                   <span className="font-medium text-success">87%</span>
                 </div>
               </div>

@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PsicoSim - Plataforma de Simulacion Conversacional',
-  description: 'Plataforma academica de simulacion situacional para entrenamiento de comunicacion y regulacion emocional',
+  title: 'PsicoSim - Plataforma de Simulación Conversacional',
+  description: 'Plataforma académica de simulación situacional para entrenamiento de comunicación y regulación emocional',
   generator: 'v0.app',
   icons: {
     icon: [

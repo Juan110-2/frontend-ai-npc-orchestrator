@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Pencil } from 'lucide-react';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SeverityBadge } from '@/components/severity-badge';
 import { ErrorState } from '@/components/ui-states';
-import { mockEscenarios } from '@/lib/mock-data';
+import { getScenario } from '@/lib/backend-api';
+import type { Escenario } from '@/lib/types';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', {
@@ -23,7 +24,56 @@ function formatDate(date: Date) {
 export default function EscenarioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const escenario = mockEscenarios.find((item) => item.id === id);
+  const [escenario, setEscenario] = useState<Escenario | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setIsLoading(true);
+        const item = await getScenario(id);
+
+        const mappedScenario: Escenario = {
+          id: item.id,
+          name: item.name,
+          description: item.context,
+          situationContext: item.context,
+          initialSeverity: Math.max(1, Math.min(5, item.severity)) as 1 | 2 | 3 | 4 | 5,
+          riskFlags: (item.risk_flags || []).map((flag, index) => ({
+            id: `${item.id}-risk-${index}`,
+            type: 'custom',
+            description: flag,
+            severity: Math.max(1, Math.min(5, item.severity)) as 1 | 2 | 3 | 4 | 5,
+            active: true,
+          })),
+          restrictions: Object.entries(item.constraints || {}).map(([key, value], index) => ({
+            id: `${item.id}-restriction-${index}`,
+            type: 'custom',
+            description: key,
+            value: String(value),
+          })),
+          createdAt: new Date(item.created_at),
+          updatedAt: new Date(item.created_at),
+        };
+
+        setEscenario(mappedScenario);
+      } catch {
+        setEscenario(null);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">Cargando escenario...</CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!escenario) {
     return (
@@ -68,7 +118,7 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Banderas de riesgo</CardTitle>
-              <CardDescription>Se activan segun la evolucion de la interaccion.</CardDescription>
+              <CardDescription>Se activan según la evolución de la interacción.</CardDescription>
             </CardHeader>
             <CardContent>
               {escenario.riskFlags.length === 0 ? (
@@ -124,19 +174,19 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
               </div>
 
               <div>
-                <p className="text-xs text-muted-foreground">Ultima actualizacion</p>
+                <p className="text-xs text-muted-foreground">Última actualización</p>
                 <p className="text-sm">{formatDate(escenario.updatedAt)}</p>
               </div>
 
               <div>
-                <p className="text-xs text-muted-foreground">Tiempo limite</p>
+                <p className="text-xs text-muted-foreground">Tiempo límite</p>
                 <p className="text-sm">{escenario.timeLimit ? `${escenario.timeLimit} min` : 'No definido'}</p>
               </div>
             </CardContent>
           </Card>
 
           <Button className="w-full" onClick={() => router.push(`/chat?escenario=${escenario.id}`)}>
-            Usar en sesion
+            Usar en sesión
           </Button>
         </div>
       </div>

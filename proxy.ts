@@ -1,9 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/recuperar']
+const PUBLIC_PATHS = ['/auth/login', '/auth/recuperar', '/auth/registro', '/auth/callback']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path))
 

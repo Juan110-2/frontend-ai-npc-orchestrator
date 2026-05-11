@@ -1,125 +1,162 @@
-'use client';
+'use client'
 
-import { use, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
-import { PageHeader } from '@/components/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ErrorState } from '@/components/ui-states';
-import { mockEscenarios } from '@/lib/mock-data';
-import type { SeverityLevel } from '@/lib/types';
-import { toast } from 'sonner';
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, Save, Plus, AlertTriangle } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Slider } from '@/components/ui/slider'
+import { toast } from 'sonner'
+import { getScenario, updateScenario } from '@/lib/backend-api'
 
-export default function EditEscenarioPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const escenario = mockEscenarios.find((item) => item.id === id);
+export default function EditarEscenarioPage() {
+  const params = useParams<{ id: string }>()
+  const router = useRouter()
+  const id = params?.id as string
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [name, setName] = useState(escenario?.name || '');
-  const [description, setDescription] = useState(escenario?.description || '');
-  const [situationContext, setSituationContext] = useState(escenario?.situationContext || '');
-  const [initialSeverity, setInitialSeverity] = useState<SeverityLevel>(escenario?.initialSeverity || 3);
-  const [timeLimit, setTimeLimit] = useState(escenario?.timeLimit ? String(escenario.timeLimit) : '');
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  if (!escenario) {
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <ErrorState
-          title="Escenario no encontrado"
-          message="No se puede editar porque el escenario ya no existe."
-          onRetry={() => router.push('/escenarios')}
-        />
-      </div>
-    );
+  const [name, setName] = useState('')
+  const [context, setContext] = useState('')
+  const [severity, setSeverity] = useState(3)
+  const [riskFlags, setRiskFlags] = useState<string[]>([])
+  const [draftFlag, setDraftFlag] = useState('')
+
+  useEffect(() => {
+    if (!id) return
+    void (async () => {
+      try {
+        const s = await getScenario(id)
+        setName(s.name)
+        setContext(s.context)
+        setSeverity(s.severity)
+        setRiskFlags(s.risk_flags ?? [])
+      } catch (err) {
+        toast.error('No se pudo cargar el escenario: ' + String(err))
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id])
+
+  const addFlag = () => {
+    const v = draftFlag.trim()
+    if (!v || riskFlags.includes(v)) return
+    setRiskFlags([...riskFlags, v])
+    setDraftFlag('')
   }
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!name.trim() || !description.trim() || !situationContext.trim()) {
-      toast.error('Completa nombre, descripcion y contexto para continuar.');
-      return;
+  const handleSave = async () => {
+    if (!name.trim() || !context.trim()) {
+      toast.error('Nombre y contexto son obligatorios.')
+      return
     }
+    setSaving(true)
+    try {
+      await updateScenario(id, {
+        name,
+        context,
+        severity,
+        risk_flags: riskFlags,
+      })
+      toast.success('Escenario actualizado.')
+      router.push('/escenarios')
+    } catch (err) {
+      toast.error('No se pudo guardar: ' + String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
 
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    toast.success('Escenario actualizado (modo demo).');
-    router.push(`/escenarios/${id}`);
-  };
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card><CardContent className="p-6 text-center text-muted-foreground">Cargando…</CardContent></Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <Link href={`/escenarios/${id}`} className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-1 h-4 w-4" />
-        Volver al detalle
+    <div className="container mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
+      <Link href="/escenarios" className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" /> Volver a escenarios
       </Link>
 
-      <PageHeader title="Editar Escenario" description="Actualiza configuracion y contexto del escenario." />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Editar escenario</h1>
+        <p className="text-sm text-muted-foreground">
+          Ajusta el contexto, la severidad inicial y las banderas de riesgo.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Datos del escenario</CardTitle>
-            <CardDescription>Los cambios se aplican en modo demo para pruebas de interfaz.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre *</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Configuración del escenario</CardTitle>
+          <CardDescription>Los cambios se aplicarán a las próximas sesiones.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Nombre *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ej. Sobrecarga académica en universidad" />
+          </div>
+          <div>
+            <Label>Contexto narrativo *</Label>
+            <Textarea
+              rows={4}
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="¿Qué está viviendo el paciente al iniciar la sesión?"
+            />
+          </div>
+          <div>
+            <Label>Severidad inicial · {severity} / 5</Label>
+            <Slider value={[severity]} min={0} max={5} step={1} onValueChange={(v) => setSeverity(v[0])} />
+            <p className="mt-1 text-xs text-muted-foreground">
+              0 = calmado · 5 = en crisis
+            </p>
+          </div>
+          <div>
+            <Label>Banderas de riesgo</Label>
+            <div className="mt-2 mb-2 flex flex-wrap gap-1.5">
+              {riskFlags.length === 0
+                ? <span className="text-xs text-muted-foreground">Sin banderas.</span>
+                : riskFlags.map((f, i) => (
+                    <Badge key={`${f}-${i}`} variant="outline" className="gap-1.5">
+                      <AlertTriangle className="h-3 w-3" /> {f}
+                      <button
+                        onClick={() => setRiskFlags(riskFlags.filter((_, j) => j !== i))}
+                        className="hover:text-destructive"
+                        aria-label="Quitar"
+                      >×</button>
+                    </Badge>
+                  ))}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descripcion *</Label>
-              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="context">Contexto de la situacion *</Label>
-              <Textarea id="context" value={situationContext} onChange={(e) => setSituationContext(e.target.value)} rows={4} />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Severidad inicial</Label>
-                <Select value={String(initialSeverity)} onValueChange={(value) => setInitialSeverity(Number(value) as SeverityLevel)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Nivel 1</SelectItem>
-                    <SelectItem value="2">Nivel 2</SelectItem>
-                    <SelectItem value="3">Nivel 3</SelectItem>
-                    <SelectItem value="4">Nivel 4</SelectItem>
-                    <SelectItem value="5">Nivel 5</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="time-limit">Limite de tiempo (minutos)</Label>
-                <Input id="time-limit" type="number" min={0} value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => router.push(`/escenarios/${id}`)}>
-                Cancelar
+            <div className="flex gap-2">
+              <Input
+                value={draftFlag}
+                onChange={(e) => setDraftFlag(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFlag() } }}
+                placeholder="ej. insomnio"
+              />
+              <Button type="button" variant="outline" onClick={addFlag}>
+                <Plus className="h-4 w-4" />
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                <Save className="mr-2 h-4 w-4" />
-                {isSaving ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-      </form>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="mt-4 flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          <Save className="mr-1 h-4 w-4" /> {saving ? 'Guardando…' : 'Guardar cambios'}
+        </Button>
+      </div>
     </div>
-  );
+  )
 }

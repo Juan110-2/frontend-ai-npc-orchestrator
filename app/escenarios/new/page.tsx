@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { SeverityLevel } from '@/lib/types';
+import { createScenario } from '@/lib/backend-api';
 
 export default function NewEscenarioPage() {
   const router = useRouter();
@@ -27,14 +28,30 @@ export default function NewEscenarioPage() {
     event.preventDefault();
 
     if (!name.trim() || !description.trim() || !situationContext.trim()) {
-      toast.error('Completa nombre, descripcion y contexto para continuar.');
+      toast.error('Completa nombre, descripción y contexto para continuar.');
       return;
     }
 
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    toast.success('Escenario creado (modo demo).');
-    router.push('/escenarios');
+
+    try {
+      await createScenario({
+        name,
+        context: situationContext,
+        severity: initialSeverity,
+        risk_flags: [],
+        constraints: {
+          timeLimit: timeLimit ? Number(timeLimit) : null,
+          description,
+        },
+      });
+      toast.success('Escenario creado.');
+      router.push('/escenarios');
+    } catch {
+      toast.error('No se pudo crear el escenario en el backend.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -49,23 +66,23 @@ export default function NewEscenarioPage() {
       <form onSubmit={handleSubmit} className="mt-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Configuracion del escenario</CardTitle>
-            <CardDescription>Los cambios se guardan en modo demo para pruebas de interfaz.</CardDescription>
+            <CardTitle className="text-base">Configuración del escenario</CardTitle>
+            <CardDescription>Los datos se guardan directamente en el backend.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="ej. Inicio de simulacion - conflicto familiar" />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="ej. Inicio de simulación - conflicto familiar" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Descripcion *</Label>
+              <Label htmlFor="description">Descripción *</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Describe brevemente el objetivo del escenario." />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="context">Contexto de la situacion *</Label>
-              <Textarea id="context" value={situationContext} onChange={(e) => setSituationContext(e.target.value)} rows={4} placeholder="Contexto narrativo que enmarca la interaccion." />
+              <Label htmlFor="context">Contexto de la situación *</Label>
+              <Textarea id="context" value={situationContext} onChange={(e) => setSituationContext(e.target.value)} rows={4} placeholder="Contexto narrativo que enmarca la interacción." />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -86,7 +103,7 @@ export default function NewEscenarioPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="time-limit">Limite de tiempo (minutos)</Label>
+                <Label htmlFor="time-limit">Límite de tiempo (minutos)</Label>
                 <Input id="time-limit" type="number" min={0} value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} placeholder="ej. 20" />
               </div>
             </div>

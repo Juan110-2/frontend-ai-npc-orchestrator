@@ -1,285 +1,221 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Search, UserCircle, MoreHorizontal, Copy, Trash2, Filter, GitBranch, Play } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Plus, Play, Pencil, Trash2, Search, User as UserIcon, AlertTriangle,
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/page-header'
+import { SeverityRange } from '@/components/severity-gauge'
+import { toast } from 'sonner'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { PageHeader } from '@/components/page-header';
-import { EmptyState } from '@/components/ui-states';
-import { mockPerfiles } from '@/lib/mock-data';
-import type { Perfil } from '@/lib/types';
-import { toast } from 'sonner';
+  deleteProfile, listProfiles, listScenarios, startSession,
+  type BackendProfile, type BackendScenario,
+} from '@/lib/backend-api'
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function PerfilCard({ 
-  perfil, 
-  onClone 
-}: { 
-  perfil: Perfil; 
-  onClone: (perfil: Perfil) => void;
-}) {
-  const router = useRouter();
-
-  return (
-    <Card className="group transition-all hover:border-border/80 hover:shadow-sm">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-              <UserCircle className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-foreground">{perfil.name}</p>
-              <div className="mt-0.5 flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {perfil.protopersonaName}
-                </Badge>
-              </div>
-            </div>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onClone(perfil)}>
-                <Copy className="mr-2 h-4 w-4" />
-                Clonar perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(`/chat?perfil=${perfil.id}`)}>
-                <Play className="mr-2 h-4 w-4" />
-                Iniciar simulacion
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Contextual Data Preview */}
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-          {perfil.contextualData.age && (
-            <div>
-              <span className="text-muted-foreground">Edad:</span>{' '}
-              <span className="font-medium">{perfil.contextualData.age} anos</span>
-            </div>
-          )}
-          {perfil.contextualData.gender && (
-            <div>
-              <span className="text-muted-foreground">Genero:</span>{' '}
-              <span className="font-medium">{perfil.contextualData.gender}</span>
-            </div>
-          )}
-          {perfil.contextualData.occupation && (
-            <div className="col-span-2">
-              <span className="text-muted-foreground">Ocupacion:</span>{' '}
-              <span className="font-medium">{perfil.contextualData.occupation}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Clone indicator */}
-        {perfil.clonedFromName && (
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <GitBranch className="h-3 w-3" />
-            Clonado de: {perfil.clonedFromName}
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {formatDate(perfil.updatedAt)}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/chat?perfil=${perfil.id}`)}>
-            Simular
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+type CardData = {
+  profile: BackendProfile
+  scenario: BackendScenario | null
 }
 
 export default function PerfilesPage() {
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
-  const [perfilToClone, setPerfilToClone] = useState<Perfil | null>(null);
-  const [cloneName, setCloneName] = useState('');
-  const [cloneAge, setCloneAge] = useState('');
-  const [cloneOccupation, setCloneOccupation] = useState('');
+  const router = useRouter()
+  const [items, setItems] = useState<CardData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
-  const filteredPerfiles = mockPerfiles.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.protopersonaName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [profiles, scenarios] = await Promise.all([listProfiles(), listScenarios()])
+      // Por ahora emparejamos por orden de creación o dejamos sin escenario.
+      // El wizard crea perfil+escenario en secuencia, así que el último escenario
+      // suele corresponder al último perfil. Para vista listado no es crítico:
+      // el botón "Practicar" abrirá un selector si es necesario.
+      const data: CardData[] = profiles.map((p) => ({
+        profile: p,
+        scenario: scenarios.find((s) => s.name === (p.traits as any)?.case_name) ?? null,
+      }))
+      setItems(data)
+    } catch (err) {
+      toast.error('No se pudo cargar el listado: ' + String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const handleCloneClick = (perfil: Perfil) => {
-    setPerfilToClone(perfil);
-    setCloneName(`${perfil.name} - Copia`);
-    setCloneAge(perfil.contextualData.age ? String(perfil.contextualData.age) : '');
-    setCloneOccupation(perfil.contextualData.occupation || '');
-    setCloneDialogOpen(true);
-  };
+  useEffect(() => { void load() }, [])
 
-  const handleClone = () => {
-    if (!perfilToClone) return;
-    const ageMessage = cloneAge ? `Edad: ${cloneAge}` : 'Edad sin cambios';
-    const occupationMessage = cloneOccupation ? `Ocupacion: ${cloneOccupation}` : 'Ocupacion sin cambios';
-    
-    toast.success(`Perfil "${cloneName}" clonado. ${ageMessage}. ${occupationMessage}.`);
-    setCloneDialogOpen(false);
-    setPerfilToClone(null);
-    setCloneName('');
-    setCloneAge('');
-    setCloneOccupation('');
-  };
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items
+    const q = search.toLowerCase()
+    return items.filter(({ profile }) =>
+      profile.name.toLowerCase().includes(q) ||
+      profile.description.toLowerCase().includes(q)
+    )
+  }, [items, search])
+
+  const handlePractice = async (profileId: string) => {
+    // Necesitamos un escenario para iniciar sesión. Si no hay vinculado,
+    // usamos el primero disponible. (Mejor mejora en otra iteración: selector.)
+    const list = await listScenarios()
+    if (list.length === 0) {
+      toast.error('No hay escenarios. Crea uno primero.')
+      return
+    }
+    try {
+      const session = await startSession({ profile_id: profileId, scenario_id: list[0].id })
+      router.push(`/chat?sesion=${session.id}`)
+    } catch (err) {
+      toast.error('No se pudo iniciar la sesión: ' + String(err))
+    }
+  }
+
+  const handleDelete = async (profileId: string) => {
+    if (!confirm('¿Eliminar este paciente? Las sesiones asociadas también se borrarán.')) return
+    try {
+      await deleteProfile(profileId)
+      toast.success('Paciente eliminado.')
+      void load()
+    } catch (err) {
+      toast.error('No se pudo eliminar: ' + String(err))
+    }
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Perfiles"
-        description="Personajes para simulaciones situacionales e interacciones guiadas"
-        action={{
-          label: 'Nuevo Perfil',
-          onClick: () => router.push('/perfiles/new'),
-          icon: <Plus className="mr-2 h-4 w-4" />,
-        }}
-      />
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <PageHeader
+          title="Perfiles de pacientes"
+          description="Casos clínicos simulados disponibles para práctica"
+        />
+        <Link href="/perfiles/new">
+          <Button>
+            <Plus className="mr-1 h-4 w-4" /> Nuevo paciente
+          </Button>
+        </Link>
+      </div>
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="mb-4 max-w-md">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar perfiles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre o descripción…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Button variant="outline" size="icon" className="self-start sm:self-auto">
-          <Filter className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Grid */}
-      {filteredPerfiles.length === 0 ? (
-        <EmptyState
-          icon={<UserCircle className="h-6 w-6 text-muted-foreground" />}
-          title="No hay perfiles"
-          description={searchQuery 
-            ? "No se encontraron perfiles con ese criterio de busqueda" 
-            : "Crea tu primer perfil seleccionando una protopersona como base"
-          }
-          action={!searchQuery ? {
-            label: 'Crear Perfil',
-            onClick: () => router.push('/perfiles/new'),
-            icon: <Plus className="mr-2 h-4 w-4" />,
-          } : undefined}
-        />
+      {loading ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando…</CardContent></Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <UserIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              {items.length === 0
+                ? 'Aún no has creado ningún paciente. Empieza creando uno.'
+                : 'No hay resultados para tu búsqueda.'}
+            </p>
+            {items.length === 0 && (
+              <Link href="/perfiles/new">
+                <Button className="mt-3" size="sm">
+                  <Plus className="mr-1 h-4 w-4" /> Crear primer paciente
+                </Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredPerfiles.map((perfil) => (
-            <PerfilCard 
-              key={perfil.id} 
-              perfil={perfil} 
-              onClone={handleCloneClick}
-            />
-          ))}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map(({ profile }) => {
+            const traits = (profile.traits ?? {}) as Record<string, unknown>
+            const age = traits.age as number | undefined
+            const occupation = traits.occupation as string | undefined
+            const personality = (traits.personality as string[]) ?? []
+            const behavior = (profile.behavior ?? {}) as Record<string, unknown>
+            const behaviorMin = behavior.behavior_min as number | undefined
+            const behaviorMax = behavior.behavior_max as number | undefined
+
+            const initials = profile.name.split(' ')
+              .map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+
+            return (
+              <Card key={profile.id} className="flex flex-col">
+                <CardContent className="flex flex-1 flex-col p-4">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                      {initials || '·'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{profile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {age ? `${age} años` : 'Edad sin definir'}
+                        {occupation ? ` · ${occupation}` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mb-3 line-clamp-2 text-sm">{profile.description}</p>
+
+                  {personality.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-1">
+                      {personality.slice(0, 4).map((p) => (
+                        <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-auto flex items-center justify-between border-t pt-3">
+                    <div className="text-xs text-muted-foreground">
+                      {behaviorMin != null && behaviorMax != null ? (
+                        <div className="inline-flex items-center gap-2">
+                          <span>Rango</span>
+                          <SeverityRange min={behaviorMin} max={behaviorMax} size="sm" />
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-amber-600">
+                          <AlertTriangle className="h-3 w-3" /> Sin comportamiento
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => handleDelete(profile.id)}
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handlePractice(profile.id)}
+                      >
+                        <Play className="mr-1 h-3 w-3" /> Practicar
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
-
-      {/* Clone Dialog */}
-      <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Clonar Perfil</DialogTitle>
-            <DialogDescription>
-              Crea una copia y ajusta rapidamente los datos clave sin afectar el perfil base.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="clone-name">Nombre del nuevo perfil</Label>
-              <Input
-                id="clone-name"
-                value={cloneName}
-                onChange={(e) => setCloneName(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="clone-age">Edad (ajuste rapido)</Label>
-                <Input
-                  id="clone-age"
-                  type="number"
-                  value={cloneAge}
-                  onChange={(e) => setCloneAge(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="clone-occupation">Ocupacion (ajuste rapido)</Label>
-                <Input
-                  id="clone-occupation"
-                  value={cloneOccupation}
-                  onChange={(e) => setCloneOccupation(e.target.value)}
-                />
-              </div>
-            </div>
-            {perfilToClone && (
-              <div className="rounded-lg bg-muted p-3 text-sm">
-                <p className="text-muted-foreground">
-                  Se clonara desde: <span className="font-medium text-foreground">{perfilToClone.name}</span>
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Basado en: <span className="font-medium text-foreground">{perfilToClone.protopersonaName}</span>
-                </p>
-                <p className="mt-1 text-muted-foreground">Se mantiene la trazabilidad con el perfil original.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCloneDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleClone}>
-              <Copy className="mr-2 h-4 w-4" />
-              Clonar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
-  );
+  )
 }

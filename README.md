@@ -10,6 +10,14 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 ## Getting Started
 
+Create an env file before running the app:
+
+```bash
+cp .env.example .env.local
+```
+
+The frontend will call the backend URL in `NEXT_PUBLIC_BACKEND_URL`.
+
 First, run the development server:
 
 ```bash

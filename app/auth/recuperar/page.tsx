@@ -18,16 +18,16 @@ export default function RecuperarContrasenaPage() {
     setIsLoading(true)
     await new Promise((resolve) => setTimeout(resolve, 400))
     setIsLoading(false)
-    toast.success('Enlace de recuperacion enviado (modo demo)')
+    toast.success('Enlace de recuperación enviado (modo demo)')
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Recuperar contrasena</CardTitle>
+          <CardTitle>Recuperar contraseña</CardTitle>
           <CardDescription>
-            Ingresa tu correo y te enviaremos instrucciones para restablecer acceso.
+            Ingresa tu correo y te enviaremos instrucciones para restablecer el acceso.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -51,7 +51,7 @@ export default function RecuperarContrasenaPage() {
           <div className="mt-4 text-center text-sm text-muted-foreground">
             <Link className="inline-flex items-center gap-1 underline hover:text-foreground" href="/auth/login">
               <ArrowLeft className="h-3.5 w-3.5" />
-              Volver al inicio de sesion
+              Volver al inicio de sesión
             </Link>
           </div>
         </CardContent>

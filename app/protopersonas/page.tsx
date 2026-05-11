@@ -190,7 +190,7 @@ export default function ProtopersonasPage() {
           icon={<Brain className="h-6 w-6 text-muted-foreground" />}
           title="No hay protopersonas"
           description={searchQuery 
-            ? "No se encontraron protopersonas con ese criterio de busqueda" 
+            ? "No se encontraron protopersonas con ese criterio de búsqueda" 
             : "Crea tu primera protopersona para comenzar a definir moldes conductuales"
           }
           action={!searchQuery ? {

@@ -20,11 +20,11 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const steps = [
-  { id: 'basic', title: 'Informacion Basica', description: 'Nombre y objetivo' },
+  { id: 'basic', title: 'Información básica', description: 'Nombre y objetivo' },
   { id: 'triggers', title: 'Disparadores', description: 'Activadores emocionales' },
-  { id: 'regulators', title: 'Reguladores', description: 'Tecnicas de regulacion' },
+  { id: 'regulators', title: 'Reguladores', description: 'Técnicas de regulación' },
   { id: 'behavior', title: 'Comportamiento', description: 'Rango y reacciones' },
-  { id: 'closure', title: 'Cierre', description: 'Criterios de finalizacion' },
+  { id: 'closure', title: 'Cierre', description: 'Criterios de finalización' },
 ];
 
 const interventionCategories: InterventionCategory[] = [
@@ -125,7 +125,7 @@ export default function NewProtopersonaPage() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    toast.success('Protopersona creada exitosamente');
+    toast.success('Protopersona creada exitosamente.');
     router.push('/protopersonas');
   };
 
@@ -151,9 +151,9 @@ export default function NewProtopersonaPage() {
           {currentStep === 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Informacion Basica</CardTitle>
+                <CardTitle>Información básica</CardTitle>
                 <CardDescription>
-                  Define el nombre y objetivo pedagogico de esta protopersona
+                  Define el nombre y objetivo pedagógico de esta protopersona
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -172,24 +172,24 @@ export default function NewProtopersonaPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="objective">Objetivo Pedagogico *</Label>
+                    <Label htmlFor="objective">Objetivo pedagógico *</Label>
                     <Textarea
                       id="objective"
-                      placeholder="ej. Entrenar la identificacion de patrones de ansiedad generalizada..."
+                      placeholder="ej. Entrenar la identificación de patrones de ansiedad generalizada..."
                       value={pedagogicalObjective}
                       onChange={(e) => setPedagogicalObjective(e.target.value)}
                       rows={3}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Que habilidades o competencias se busca desarrollar con esta simulacion
+                      ¿Qué habilidades o competencias se busca desarrollar con esta simulación?
                     </p>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="description">Descripcion (opcional)</Label>
+                    <Label htmlFor="description">Descripción (opcional)</Label>
                     <Textarea
                       id="description"
-                      placeholder="Descripcion adicional del perfil conductual..."
+                      placeholder="Descripción adicional del perfil conductual..."
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={2}
@@ -242,9 +242,9 @@ export default function NewProtopersonaPage() {
                             />
                           </div>
                           <div>
-                            <Label>Descripcion</Label>
+                            <Label>Descripción</Label>
                             <Textarea
-                              placeholder="Describe la situacion disparadora..."
+                              placeholder="Describe la situación disparadora..."
                               value={trigger.description}
                               onChange={(e) => updateTrigger(index, 'description', e.target.value)}
                               rows={2}
@@ -288,7 +288,7 @@ export default function NewProtopersonaPage() {
               <CardHeader>
                 <CardTitle>Reguladores</CardTitle>
                 <CardDescription>
-                  Tecnicas y recursos que ayudan a reducir la intensidad emocional
+                  Técnicas y recursos que ayudan a reducir la intensidad emocional
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -313,15 +313,15 @@ export default function NewProtopersonaPage() {
                           <div>
                             <Label>Nombre</Label>
                             <Input
-                              placeholder="ej. Respiracion consciente"
+                              placeholder="ej. Respiración consciente"
                               value={regulator.name}
                               onChange={(e) => updateRegulator(index, 'name', e.target.value)}
                             />
                           </div>
                           <div>
-                            <Label>Descripcion</Label>
+                            <Label>Descripción</Label>
                             <Textarea
-                              placeholder="Describe la tecnica de regulacion..."
+                              placeholder="Describe la técnica de regulación..."
                               value={regulator.description}
                               onChange={(e) => updateRegulator(index, 'description', e.target.value)}
                               rows={2}
@@ -359,7 +359,7 @@ export default function NewProtopersonaPage() {
               <CardHeader>
                 <CardTitle>Comportamiento y Reacciones</CardTitle>
                 <CardDescription>
-                  Define el rango de severidad y como reacciona a diferentes intervenciones
+                  Define el rango de severidad y cómo reacciona a diferentes intervenciones
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -369,7 +369,7 @@ export default function NewProtopersonaPage() {
                     <h4 className="font-medium mb-4">Rango de Comportamiento</h4>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <Label>Severidad Minima</Label>
+                        <Label>Severidad mínima</Label>
                         <Select
                           value={String(behaviorMin)}
                           onValueChange={(v) => setBehaviorMin(Number(v) as SeverityLevel)}
@@ -387,7 +387,7 @@ export default function NewProtopersonaPage() {
                         </Select>
                       </div>
                       <div>
-                        <Label>Severidad Maxima</Label>
+                        <Label>Severidad máxima</Label>
                         <Select
                           value={String(behaviorMax)}
                           onValueChange={(v) => setBehaviorMax(Number(v) as SeverityLevel)}
@@ -406,7 +406,7 @@ export default function NewProtopersonaPage() {
                       </div>
                     </div>
                     <div className="mt-4">
-                      <Label>Descripcion del Rango</Label>
+                      <Label>Descripción del rango</Label>
                       <Textarea
                         placeholder="Describe el rango de comportamiento esperado..."
                         value={behaviorDescription}
@@ -424,7 +424,7 @@ export default function NewProtopersonaPage() {
 
                   {/* Intervention Reactions */}
                   <div>
-                    <h4 className="font-medium mb-4">Reacciones por Tipo de Intervencion</h4>
+                    <h4 className="font-medium mb-4">Reacciones por tipo de intervención</h4>
                     <div className="space-y-3">
                       {reactions.map((reaction) => (
                         <div key={reaction.category} className="rounded-lg border border-border p-4">
@@ -447,7 +447,7 @@ export default function NewProtopersonaPage() {
                             </Select>
                           </div>
                           <Input
-                            placeholder="Patron de respuesta esperado..."
+                            placeholder="Patrón de respuesta esperado..."
                             value={reaction.responsePattern}
                             onChange={(e) => updateReaction(reaction.category, 'responsePattern', e.target.value)}
                           />
@@ -468,7 +468,7 @@ export default function NewProtopersonaPage() {
               <CardHeader>
                 <CardTitle>Criterios de Cierre</CardTitle>
                 <CardDescription>
-                  Condiciones que determinan cuando debe finalizar una sesion
+                  Condiciones que determinan cuándo debe finalizar una sesión
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -478,7 +478,7 @@ export default function NewProtopersonaPage() {
                     <div className="text-sm">
                       <p className="font-medium">Importante</p>
                       <p className="text-muted-foreground">
-                        Estos criterios ayudan al sistema a determinar automaticamente cuando una sesion 
+                        Estos criterios ayudan al sistema a determinar automáticamente cuándo una sesión 
                         ha alcanzado un punto de cierre apropiado.
                       </p>
                     </div>
@@ -494,7 +494,7 @@ export default function NewProtopersonaPage() {
                             rule.criteria === 'deterioration' && 'text-warning',
                             rule.criteria === 'risk' && 'text-destructive'
                           )}>
-                            {rule.criteria === 'improvement' && 'Mejoria'}
+                            {rule.criteria === 'improvement' && 'Mejoría'}
                             {rule.criteria === 'deterioration' && 'Deterioro'}
                             {rule.criteria === 'risk' && 'Riesgo'}
                           </span>
@@ -512,7 +512,7 @@ export default function NewProtopersonaPage() {
                         </div>
                         <Textarea
                           placeholder={`Describe cuando se considera ${
-                            rule.criteria === 'improvement' ? 'mejoria' :
+                            rule.criteria === 'improvement' ? 'mejoría' :
                             rule.criteria === 'deterioration' ? 'deterioro' : 'riesgo'
                           }...`}
                           value={rule.description}

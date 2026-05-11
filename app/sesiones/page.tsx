@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -33,10 +33,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/page-header';
 import { EmptyState } from '@/components/ui-states';
-import { SeverityBadge, SeverityIndicator } from '@/components/severity-badge';
-import { mockSesiones } from '@/lib/mock-data';
+import { SeverityBadge } from '@/components/severity-badge';
 import type { Sesion, SessionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { listProfiles, listScenarios, listSessions } from '@/lib/backend-api';
+import { toast } from 'sonner';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', {
@@ -89,7 +90,7 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
             </div>
             <div>
               <Link 
-                href={`/sesiones/${sesion.id}`}
+                href={sesion.status === 'active' ? `/chat?sesion=${sesion.id}` : `/evaluacion?sesion=${sesion.id}`}
                 className="font-medium text-foreground hover:underline"
               >
                 {sesion.perfilName}
@@ -104,7 +105,7 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push(`/sesiones/${sesion.id}`)}>
+              <DropdownMenuItem onClick={() => router.push(sesion.status === 'active' ? `/chat?sesion=${sesion.id}` : `/evaluacion?sesion=${sesion.id}`)}>
                 <Eye className="mr-2 h-4 w-4" />
                 Ver detalle
               </DropdownMenuItem>
@@ -117,11 +118,11 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
               {sesion.status === 'paused' && (
                 <DropdownMenuItem onClick={() => router.push(`/chat?sesion=${sesion.id}`)}>
                   <Play className="mr-2 h-4 w-4" />
-                  Reanudar sesion
+                  Reanudar sesión
                 </DropdownMenuItem>
               )}
               {sesion.status === 'completed' && (
-                <DropdownMenuItem onClick={() => router.push(`/evaluacion/new?session=${sesion.id}`)}>
+                <DropdownMenuItem onClick={() => router.push(`/evaluacion?sesion=${sesion.id}`)}>
                   <ClipboardCheck className="mr-2 h-4 w-4" />
                   Evaluar
                 </DropdownMenuItem>
@@ -153,7 +154,7 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
           </div>
           <div>
             <p className="text-lg font-semibold">{sesion.state.activeRiskFlags.length}</p>
-            <p className="text-xs text-muted-foreground">Flags</p>
+                <p className="text-xs text-muted-foreground">Alertas</p>
           </div>
         </div>
 
@@ -170,7 +171,7 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
             {formatDate(sesion.startedAt)}
           </span>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={sesion.status === 'active' ? `/chat?sesion=${sesion.id}` : `/sesiones/${sesion.id}`}>
+            <Link href={sesion.status === 'active' ? `/chat?sesion=${sesion.id}` : `/evaluacion?sesion=${sesion.id}`}>
               {sesion.status === 'active' ? 'Continuar' : 'Ver detalle'}
             </Link>
           </Button>
@@ -182,10 +183,64 @@ function SesionCard({ sesion }: { sesion: Sesion }) {
 
 export default function SesionesPage() {
   const router = useRouter();
+  const [sesiones, setSesiones] = useState<Sesion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('all');
 
-  const filteredSesiones = mockSesiones.filter((s) => {
+  const loadSessions = async () => {
+    try {
+      setIsLoading(true);
+      const [sessionsData, profilesData, scenariosData] = await Promise.all([
+        listSessions(),
+        listProfiles(),
+        listScenarios(),
+      ]);
+
+      const profileMap = new Map(profilesData.map((profile) => [profile.id, profile]));
+      const scenarioMap = new Map(scenariosData.map((scenario) => [scenario.id, scenario]));
+
+      const now = Date.now();
+      const mappedSessions: Sesion[] = sessionsData.map((session) => {
+        const profile = profileMap.get(session.profile_id);
+        const scenario = scenarioMap.get(session.scenario_id);
+        const startedAt = new Date(session.started_at);
+        const endedAt = session.ended_at ? new Date(session.ended_at) : undefined;
+
+        return {
+          id: session.id,
+          perfilId: session.profile_id,
+          perfilName: profile?.name || 'Perfil no encontrado',
+          escenarioId: session.scenario_id,
+          escenarioName: scenario?.name || 'Escenario no encontrado',
+          status: session.ended_at ? 'completed' : 'active',
+          state: {
+            currentSeverity: Math.max(1, Math.min(5, session.current_severity)) as 1 | 2 | 3 | 4 | 5,
+            activeRiskFlags: [],
+            turnCount: 0,
+            totalDuration: Math.max(0, Math.floor(((endedAt?.getTime() || now) - startedAt.getTime()) / 1000)),
+            coherenceScore: 100,
+            interventionHistory: [],
+          },
+          messages: [],
+          startedAt,
+          endedAt,
+        };
+      });
+
+      setSesiones(mappedSessions);
+    } catch {
+      toast.error('No se pudieron cargar las sesiones desde el backend.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSessions();
+  }, []);
+
+  const filteredSesiones = sesiones.filter((s) => {
     const matchesSearch = s.perfilName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.escenarioName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTab = activeTab === 'all' || s.status === activeTab;
@@ -193,19 +248,19 @@ export default function SesionesPage() {
   });
 
   const counts = {
-    all: mockSesiones.length,
-    active: mockSesiones.filter(s => s.status === 'active').length,
-    paused: mockSesiones.filter(s => s.status === 'paused').length,
-    completed: mockSesiones.filter(s => s.status === 'completed').length,
+    all: sesiones.length,
+    active: sesiones.filter(s => s.status === 'active').length,
+    paused: sesiones.filter(s => s.status === 'paused').length,
+    completed: sesiones.filter(s => s.status === 'completed').length,
   };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Sesiones"
-        description="Historial de sesiones de simulacion y chat activas"
+        description="Historial de sesiones de simulación y chats activos"
         action={{
-          label: 'Nueva Sesion',
+          label: 'Nueva sesión',
           onClick: () => router.push('/chat?setup=1'),
           icon: <Plus className="mr-2 h-4 w-4" />,
         }}
@@ -294,16 +349,22 @@ export default function SesionesPage() {
       </div>
 
       {/* Grid */}
-      {filteredSesiones.length === 0 ? (
+      {isLoading ? (
+        <EmptyState
+          icon={<MessageSquare className="h-6 w-6 text-muted-foreground" />}
+          title="Cargando sesiones"
+          description="Estamos consultando la información del backend."
+        />
+      ) : filteredSesiones.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="h-6 w-6 text-muted-foreground" />}
           title="No hay sesiones"
           description={searchQuery 
-            ? "No se encontraron sesiones con ese criterio de busqueda" 
-            : "Inicia una nueva sesion para comenzar a simular"
+            ? "No se encontraron sesiones con ese criterio de búsqueda" 
+            : "Inicia una nueva sesión para comenzar a simular"
           }
           action={!searchQuery ? {
-            label: 'Nueva Sesion',
+            label: 'Nueva sesión',
             onClick: () => router.push('/chat?setup=1'),
             icon: <Plus className="mr-2 h-4 w-4" />,
           } : undefined}

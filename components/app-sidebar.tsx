@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -10,7 +11,8 @@ import {
   Play,
   LogOut,
   Menu,
-  Brain,
+  Shield,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,12 +20,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useAuth } from '@/lib/auth-context';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Moldes', href: '/protopersonas', icon: Brain },
+  { name: 'Inicio', href: '/', icon: LayoutDashboard },
   { name: 'Perfiles', href: '/perfiles', icon: UserCircle },
   { name: 'Escenarios', href: '/escenarios', icon: Map },
   { name: 'Sesiones', href: '/sesiones', icon: Play },
-  { name: 'Evaluacion', href: '/evaluacion', icon: ClipboardCheck },
+  { name: 'Evaluación', href: '/evaluacion', icon: ClipboardCheck },
 ];
 
 type AppSidebarProps = {
@@ -33,36 +34,57 @@ type AppSidebarProps = {
 
 export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   const pathname = usePathname();
-  const { userEmail, logout } = useAuth();
+  const { userEmail, userRole, logout } = useAuth();
   const router = useRouter();
+
+  // Admin: métricas y usuarios solo visibles para administradores.
+  const adminNavigation: Array<{ name: string; href: string; icon: React.ElementType }> = [];
+  if (userRole === 'admin') {
+    adminNavigation.push({ name: 'Métricas', href: '/admin/metricas', icon: BarChart3 });
+    adminNavigation.push({ name: 'Usuarios', href: '/admin/usuarios', icon: Shield });
+  }
 
   const handleLogout = () => {
     logout();
     router.push('/auth/login');
   };
 
+  const renderNavItem = (item: { name: string; href: string; icon: React.ElementType }, compact: boolean) => {
+    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        title={compact ? item.name : undefined}
+        className={cn(
+          'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+          compact && 'justify-center px-2',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+        )}
+      >
+        <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-sidebar-primary')} />
+        {!compact && <span>{item.name}</span>}
+      </Link>
+    );
+  };
+
   const navItems = (compact = false) => (
     <nav className={cn('space-y-1 px-3 py-4', compact && 'px-2')}>
-      {navigation.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.name}
-            href={item.href}
-            title={compact ? item.name : undefined}
-            className={cn(
-              'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-              compact && 'justify-center px-2',
-              isActive
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-            )}
-          >
-            <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-sidebar-primary')} />
-            {!compact && <span>{item.name}</span>}
-          </Link>
-        );
-      })}
+      {navigation.map((item) => renderNavItem(item, compact))}
+
+      {/* Sección Admin — solo visible para administradores */}
+      {adminNavigation.length > 0 && (
+        <>
+          {!compact && (
+            <p className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+              Administración
+            </p>
+          )}
+          {adminNavigation.map((item) => renderNavItem(item, compact))}
+        </>
+      )}
     </nav>
   );
 
@@ -70,7 +92,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     <>
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-sidebar px-3 text-sidebar-foreground md:hidden">
         <Link href="/" className="text-base font-semibold tracking-tight">
-          AI Orchestrator
+          Orquestador IA
         </Link>
         <Sheet>
           <SheetTrigger asChild>
@@ -80,18 +102,23 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
           </SheetTrigger>
           <SheetContent side="left" className="w-72 border-r bg-sidebar text-sidebar-foreground">
             <SheetHeader>
-              <SheetTitle className="text-sidebar-foreground">Menu</SheetTitle>
+              <SheetTitle className="text-sidebar-foreground">Menú</SheetTitle>
             </SheetHeader>
             {navItems()}
             <div className="border-t border-sidebar-border p-3">
-              <p className="mb-3 truncate text-xs text-sidebar-foreground/60">{userEmail}</p>
+              <div className="mb-3">
+                <p className="truncate text-xs text-sidebar-foreground/80">{userEmail}</p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+                  {userRole === 'admin' ? 'Administrador' : userRole === 'teacher' ? 'Docente' : 'Estudiante'}
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Cerrar sesion
+                Cerrar sesión
               </Button>
             </div>
           </SheetContent>
@@ -107,7 +134,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
         <div className={cn('flex h-16 items-center border-b border-sidebar-border px-4', isCollapsed && 'justify-center px-2')}>
           {!isCollapsed && (
             <Link href="/" className="text-lg font-semibold tracking-tight">
-              AI Orchestrator
+              Orquestador IA
             </Link>
           )}
           <Button
@@ -116,15 +143,22 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
             size="icon"
             className={cn('text-sidebar-foreground hover:bg-sidebar-accent', isCollapsed ? 'ml-0' : 'ml-auto')}
             onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expandir menu' : 'Colapsar menu'}
-            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Colapsar menu lateral'}
+            title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+            aria-label={isCollapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'}
           >
             <Menu className="h-5 w-5" />
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto">{navItems(isCollapsed)}</div>
         <div className={cn('border-t border-sidebar-border p-3', isCollapsed && 'px-2')}>
-          {!isCollapsed && <p className="mb-3 truncate text-xs text-sidebar-foreground/60">{userEmail}</p>}
+          {!isCollapsed && (
+            <div className="mb-3">
+              <p className="truncate text-xs text-sidebar-foreground/80">{userEmail}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+                {userRole === 'admin' ? 'Administrador' : userRole === 'teacher' ? 'Docente' : 'Estudiante'}
+              </p>
+            </div>
+          )}
           <Button
             variant="ghost"
             className={cn(
@@ -132,10 +166,10 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
               isCollapsed ? 'justify-center px-2' : 'justify-start'
             )}
             onClick={handleLogout}
-            title={isCollapsed ? 'Cerrar sesion' : undefined}
+            title={isCollapsed ? 'Cerrar sesión' : undefined}
           >
             <LogOut className={cn('h-4 w-4', !isCollapsed && 'mr-2')} />
-            {!isCollapsed && 'Cerrar sesion'}
+            {!isCollapsed && 'Cerrar sesión'}
           </Button>
         </div>
       </aside>
