@@ -9,9 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SeverityBadge } from '@/components/severity-badge';
-import { ErrorState } from '@/components/ui-states';
+import { ErrorState, LoadingState } from '@/components/ui-states';
 import { getScenario } from '@/lib/backend-api';
 import type { Escenario } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', {
@@ -24,10 +25,15 @@ function formatDate(date: Date) {
 export default function EscenarioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { userRole, isLoading: authLoading } = useAuth();
   const [escenario, setEscenario] = useState<Escenario | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!authLoading && userRole === 'student') {
+      router.push('/sesiones');
+      return;
+    }
     void (async () => {
       try {
         setIsLoading(true);
@@ -65,12 +71,12 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
     })();
   }, [id]);
 
+  if (authLoading || userRole === 'student') return null;
+
   if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Cargando escenario...</CardContent>
-        </Card>
+        <Card><CardContent><LoadingState message="Cargando escenario..." className="py-8" /></CardContent></Card>
       </div>
     );
   }
@@ -180,7 +186,6 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
 
               <div>
                 <p className="text-xs text-muted-foreground">Tiempo límite</p>
-                <p className="text-sm">{escenario.timeLimit ? `${escenario.timeLimit} min` : 'No definido'}</p>
               </div>
             </CardContent>
           </Card>

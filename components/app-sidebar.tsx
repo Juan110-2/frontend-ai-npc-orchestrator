@@ -70,9 +70,13 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     );
   };
 
+  const filteredNavigation = userRole === 'student'
+    ? navigation.filter((item) => item.href !== '/perfiles' && item.href !== '/escenarios')
+    : navigation;
+
   const navItems = (compact = false) => (
     <nav className={cn('space-y-1 px-3 py-4', compact && 'px-2')}>
-      {navigation.map((item) => renderNavItem(item, compact))}
+      {filteredNavigation.map((item) => renderNavItem(item, compact))}
 
       {/* Sección Admin — solo visible para administradores */}
       {adminNavigation.length > 0 && (

@@ -10,14 +10,25 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/page-header'
 import { SeverityGauge } from '@/components/severity-gauge'
+import { Paginator, paginate } from '@/components/paginator'
+import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
 import { deleteScenario, listScenarios, type BackendScenario } from '@/lib/backend-api'
+import { useAuth } from '@/lib/auth-context'
 
 export default function EscenariosPage() {
   const router = useRouter()
+  const { userRole, isLoading: authLoading } = useAuth()
   const [items, setItems] = useState<BackendScenario[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (!authLoading && userRole === 'student') {
+      router.push('/sesiones')
+    }
+  }, [authLoading, userRole, router])
 
   const load = async () => {
     setLoading(true)
@@ -30,6 +41,7 @@ export default function EscenariosPage() {
     }
   }
   useEffect(() => { void load() }, [])
+  useEffect(() => { setPage(1) }, [search])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return items
@@ -50,12 +62,14 @@ export default function EscenariosPage() {
     }
   }
 
+  if (authLoading || userRole === 'student') return null
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <PageHeader
           title="Escenarios"
-          description="Contextos clínicos disponibles para emparejar con pacientes"
+          description="Contextos clínicos disponibles para emparejar con perfiles"
         />
         <Link href="/escenarios/new">
           <Button>
@@ -77,21 +91,28 @@ export default function EscenariosPage() {
       </div>
 
       {loading ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando…</CardContent></Card>
+        <Card><CardContent><LoadingState className="py-8" /></CardContent></Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <FileText className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+            <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {items.length === 0
-                ? 'Aún no has creado ningún escenario.'
-                : 'No hay resultados.'}
+                ? 'Aún no has creado ningún escenario. Empieza creando uno.'
+                : 'No hay resultados para tu búsqueda.'}
             </p>
+            {items.length === 0 && (
+              <Link href="/escenarios/new">
+                <Button className="mt-4">
+                  <Plus className="mr-1 h-4 w-4" /> Crear primer escenario
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((s) => (
+          {paginate(filtered, page).map((s) => (
             <Card key={s.id}>
               <CardContent className="flex flex-col p-4">
                 <div className="mb-2 flex items-start justify-between gap-3">
@@ -131,6 +152,7 @@ export default function EscenariosPage() {
           ))}
         </div>
       )}
+      <Paginator total={filtered.length} page={page} onPageChange={setPage} />
     </div>
   )
 }

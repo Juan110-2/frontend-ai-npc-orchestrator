@@ -12,7 +12,19 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { SeverityBadge } from "@/components/severity-badge"
+import { SeverityGauge } from "@/components/severity-gauge"
 import { 
   Send, 
   Clock, 
@@ -24,9 +36,12 @@ import {
   PlayCircle,
   PauseCircle,
   StopCircle,
-  PanelRightClose
+  PanelRightClose,
+  Eye,
+  EyeOff
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { PageLoader } from "@/components/ui-states"
 import type { Sesion } from "@/lib/types"
 import {
   endSession,
@@ -43,7 +58,7 @@ import {
 } from "@/lib/backend-api"
 import { toast } from "sonner"
 
-// Local ChatMessage type for the chat UI
+
 interface ChatMessage {
   id: string
   sessionId: string
@@ -248,6 +263,11 @@ function ChatPageContent() {
   const [elapsedTime, setElapsedTime] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
+  // Admin puede cambiar entre vistas
+  const [teacherViewOverride, setTeacherViewOverride] = useState<boolean | null>(null)
+  const isAdmin = userRole === "admin"
+  const effectiveTeacherView = teacherViewOverride ?? (userRole === "teacher" || userRole === "admin")
+  
   useEffect(() => {
     void (async () => {
       try {
@@ -301,7 +321,6 @@ function ChatPageContent() {
       : null
 
   const canStartChat = Boolean(sesion && perfil && escenario)
-  const isTeacher = userRole === "teacher"
   
   // Timer effect
   useEffect(() => {
@@ -312,13 +331,22 @@ function ChatPageContent() {
       return () => clearInterval(interval)
     }
   }, [sessionStatus])
-  
-  // Auto-scroll to bottom
+
+  // Auto-scroll al último mensaje. El ScrollArea de radix usa un viewport
+  // interno [data-radix-scroll-area-viewport]: buscamos ese y le aplicamos
+  // scrollTop directo. Si no, fallback a scrollIntoView.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    const end = messagesEndRef.current
+    if (!end) return
+    const viewport = end.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null
+    if (viewport) {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
+    } else {
+      end.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [messages, isLoading])
   
-  // Load conversation history when opening an existing session
+  // Cargar historial de mensajes al iniciar sesión o cambiar de sesión activa.
   useEffect(() => {
     if (!activeSession?.id) return
 
@@ -341,11 +369,6 @@ function ChatPageContent() {
       }
     })()
   }, [activeSession?.id])
-
-  // Nota: el chat NO inserta un mensaje pregrabado del paciente.
-  // En una simulacion clinica es el estudiante quien aborda al paciente,
-  // no al reves. La conversacion empieza vacia hasta que el estudiante envia
-  // su primer turno.
   
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -388,8 +411,6 @@ function ChatPageContent() {
     setInputValue("")
     setIsLoading(true)
 
-    // El placeholder del NPC se inserta SOLO cuando llega el primer chunk,
-    // asi mientras tanto solo se ve el indicador "escribiendo" (tres puntos).
     const assistantId = `assistant-${Date.now()}`
     let placeholderCreated = false
 
@@ -399,7 +420,6 @@ function ChatPageContent() {
       handle.onChunk((text) => {
         if (!placeholderCreated) {
           placeholderCreated = true
-          // Al insertar el placeholder ya con el primer chunk, ocultamos el indicador
           setIsLoading(false)
           setMessages(prev => [
             ...prev,
@@ -420,11 +440,9 @@ function ChatPageContent() {
 
       handle.onDone((data) => {
         setIsLoading(false)
-        // Actualizar severidad localmente
         if (activeSession) {
           setActiveSession({ ...activeSession, current_severity: data.severity })
         }
-        // Si la sesion se cerro, mostrar mensaje y bloquear input
         if (data.should_close) {
           setSessionStatus("completed")
           if (activeSession) {
@@ -444,7 +462,6 @@ function ChatPageContent() {
           } else {
             toast("Sesión finalizada.")
           }
-          // Redirigir a evaluación tras 2.5s
           setTimeout(() => {
             router.push(`/evaluacion?sesion=${sessionForMessage!.id}`)
           }, 2500)
@@ -503,7 +520,7 @@ function ChatPageContent() {
   }
 
   if (isBootstrapping) {
-    return <div className="p-4 sm:p-6 lg:p-8">Cargando sesión...</div>
+    return <PageLoader message="Cargando sesión..." />
   }
 
   if (!canStartChat || setupMode) {
@@ -576,7 +593,7 @@ function ChatPageContent() {
             <div className="min-w-0">
               <h1 className="truncate text-xl font-semibold leading-tight text-foreground sm:text-2xl">Sesión de simulación</h1>
               <p className="truncate text-sm text-muted-foreground">
-                {isTeacher
+                {effectiveTeacherView
                   ? `${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}`
                   : "Modo estudiante: exploración y percepción del caso en entorno abierto"}
               </p>
@@ -590,6 +607,27 @@ function ChatPageContent() {
               <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "paused" ? "secondary" : "outline"}>
                 {sessionStatus === "active" ? "En curso" : sessionStatus === "paused" ? "Pausada" : "Finalizada"}
               </Badge>
+              
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setTeacherViewOverride(prev => !prev)}
+                >
+                  {effectiveTeacherView ? (
+                    <>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      Vista estudiante
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Vista profesor
+                    </>
+                  )}
+                </Button>
+              )}
+              
               <Button variant="outline" size="sm" onClick={handlePauseSession}>
                 {sessionStatus === "paused" ? (
                   <>
@@ -603,11 +641,29 @@ function ChatPageContent() {
                   </>
                 )}
               </Button>
-              <Button variant="destructive" size="sm" onClick={handleEndSession}>
-                <StopCircle className="mr-2 h-4 w-4" />
-                Finalizar
-              </Button>
-              {isTeacher && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <StopCircle className="mr-2 h-4 w-4" />
+                    Finalizar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Finalizar la sesión?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción cerrará la sesión de forma permanente y no podrás seguir enviando mensajes. Se generará la evaluación automáticamente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleEndSession} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Sí, finalizar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {effectiveTeacherView && (
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="lg:hidden">
@@ -633,7 +689,9 @@ function ChatPageContent() {
                         escenarioDescription={escenario?.context || 'No disponible'}
                         situationContext={escenario?.context || 'No disponible'}
                         riskItems={escenario?.risk_flags || []}
-                        restrictionItems={Object.entries(escenario?.constraints || {}).map(([key, value]) => `${key}: ${String(value)}`)}
+                        restrictionItems={Object.entries(escenario?.constraints || {})
+                  .filter(([k, v]) => v != null && v !== '' && k !== 'timeLimit' && k !== 'description')
+                  .map(([key, value]) => `${key}: ${String(value)}`)}
                       />
                     </div>
                   </SheetContent>
@@ -644,8 +702,8 @@ function ChatPageContent() {
         </header>
 
         <div className="flex min-h-0 flex-1 gap-3">
-          <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-sm">
-            <ScrollArea className="flex-1 p-3 sm:p-4 lg:p-5">
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-sm">
+            <ScrollArea className="min-h-0 flex-1 p-3 sm:p-4 lg:p-5">
               <div className="mx-auto w-full max-w-5xl space-y-5 sm:space-y-6">
                 {messages.length === 0 && !isLoading && (
                   <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
@@ -686,7 +744,7 @@ function ChatPageContent() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                          {message.role === 'user' ? 'Estudiante' : 'Personaje'}
+                          {message.role === 'user' ? 'Estudiante' : 'Paciente'}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {new Date(message.timestamp).toLocaleTimeString("es-ES", {
@@ -765,8 +823,14 @@ function ChatPageContent() {
             </div>
           </section>
 
-          {isTeacher ? (
+          {effectiveTeacherView ? (
             <aside className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-sm lg:block lg:w-80 xl:w-96">
+              <div className="border-b bg-muted/30 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium text-muted-foreground">Severidad actual</span>
+                  <SeverityGauge level={activeSession?.current_severity ?? escenario?.severity ?? 0} size="sm" />
+                </div>
+              </div>
               <SessionContextPanel
                 perfilName={perfil?.name || 'Perfil no encontrado'}
                 age={typeof perfil?.traits?.age === 'number' ? (perfil?.traits?.age as number) : undefined}
@@ -780,7 +844,9 @@ function ChatPageContent() {
                 escenarioDescription={escenario?.context || 'No disponible'}
                 situationContext={escenario?.context || 'No disponible'}
                 riskItems={escenario?.risk_flags || []}
-                restrictionItems={Object.entries(escenario?.constraints || {}).map(([key, value]) => `${key}: ${String(value)}`)}
+                restrictionItems={Object.entries(escenario?.constraints || {})
+                  .filter(([k, v]) => v != null && v !== '' && k !== 'timeLimit' && k !== 'description')
+                  .map(([key, value]) => `${key}: ${String(value)}`)}
               />
             </aside>
           ) : (
@@ -793,7 +859,10 @@ function ChatPageContent() {
                 </p>
                 <div className="space-y-2 rounded-xl border bg-background p-3">
                   <p className="text-sm font-medium">Objetivo sugerido</p>
-                  <p className="text-sm text-muted-foreground">Identificar señales emocionales y responder con preguntas abiertas y lenguaje de apoyo.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Identificar señales emocionales y responder con preguntas
+                    abiertas y lenguaje de apoyo.
+                  </p>
                 </div>
               </div>
             </aside>
@@ -804,10 +873,14 @@ function ChatPageContent() {
   )
 }
 
+function ChatPageInner() {
+  return <ChatPageContent />
+}
+
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="p-4 sm:p-6 lg:p-8">Cargando simulación...</div>}>
-      <ChatPageContent />
+    <Suspense fallback={<PageLoader />}>
+      <ChatPageInner />
     </Suspense>
   )
 }

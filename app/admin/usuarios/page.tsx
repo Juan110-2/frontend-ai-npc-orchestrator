@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Pencil, Check, X, RefreshCw } from 'lucide-react'
+import { Shield, Pencil, Check, X, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -125,8 +125,11 @@ export default function AdminUsuariosPage() {
           <tbody className="divide-y">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-muted-foreground">
-                  Cargando usuarios...
+                <td colSpan={5} className="py-12 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="text-sm">Cargando usuarios...</span>
+                  </div>
                 </td>
               </tr>
             ) : users.length === 0 ? (

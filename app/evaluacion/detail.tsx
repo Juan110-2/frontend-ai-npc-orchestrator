@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
+import { LoadingState } from "@/components/ui-states"
 import {
   getActiveRubric,
   getConversationHistory,
@@ -124,11 +125,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
   if (loading) {
     return (
       <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground">
-            Cargando evaluación...
-          </CardContent>
-        </Card>
+        <Card><CardContent><LoadingState message="Cargando evaluación..." className="py-8" /></CardContent></Card>
       </div>
     )
   }
@@ -244,7 +241,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         </CardContent>
       </Card>
 
-      {/* Rúbrica del docente */}
+      // Rúbrica del docente (si existe) para evaluación manual
       {rubric && (
         <Card>
           <CardHeader>

@@ -28,6 +28,7 @@ export type ProfileTemplate = {
   // Paso 3 — Motivo de consulta (escenario)
   scenario: {
     name: string
+    description: string
     context: string
     severity: number // 0..5
     riskFlags: string[]
@@ -61,6 +62,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Sobrecarga académica en universidad',
+      description: 'Manejar la ansiedad por el rendimiento académico.',
       context: 'Acaba de salir de clase. Lleva tres noches durmiendo poco y siente que no llega a las entregas del semestre. Tiene miedo a fallar y a decepcionar a su familia.',
       severity: 3,
       riskFlags: ['insomnio', 'aislamiento reciente'],
@@ -96,6 +98,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Duelo por ruptura de pareja',
+      description: 'Acompanamiento en duelo reciente y procesamiento emocional.',
       context: 'Lleva tres semanas durmiendo mal y evitando ver a sus amigos. Dice que “está bien” pero llora cuando habla del tema.',
       severity: 4,
       riskFlags: ['aislamiento social', 'llanto frecuente'],
@@ -131,6 +134,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Crisis emocional con ideación pasiva',
+      description: 'Contencion ante ideacion pasiva y desesperanza.',
       context: 'Lleva meses sintiéndose así. Hoy dice cosas como “sería mejor si no estuviera” sin un plan concreto, pero con frecuencia creciente.',
       severity: 5,
       riskFlags: ['ideación pasiva', 'desesperanza', 'aislamiento'],
@@ -166,6 +170,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Conflicto familiar con autoexigencia',
+      description: 'Explorar conflicto familiar y autoexigencia.',
       context: 'Tuvo una pelea fuerte con su papá ayer por sus notas. Siente que tiene que “rendir más” pero está agotado.',
       severity: 3,
       riskFlags: ['estrés familiar', 'autoexigencia'],
@@ -201,6 +206,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Burnout y miedo a fallar',
+      description: 'Abordar burnout y miedo a cometer errores.',
       context: 'Lleva meses con jornadas de doce horas. Siente que cualquier error la va a delatar.',
       severity: 3,
       riskFlags: ['fatiga crónica', 'autoexigencia'],
@@ -235,6 +241,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
     },
     scenario: {
       name: 'Soledad por desarraigo reciente',
+      description: 'Explorar aislamiento y desarraigo reciente.',
       context: 'Vive solo en otra ciudad. Sus amigos y familia están lejos. El trabajo va bien, pero las noches y los fines de semana se le hacen muy pesados.',
       severity: 2,
       riskFlags: ['aislamiento', 'desarraigo'],
@@ -259,6 +266,6 @@ export const BLANK_TEMPLATE: ProfileTemplate = {
   icon: 'PencilPlus',
   identity: { name: '', identityName: '', age: 25, occupation: '', description: '' },
   psych: { personality: [], communicationStyle: [] },
-  scenario: { name: '', context: '', severity: 3, riskFlags: [] },
+  scenario: { name: '', description: '', context: '', severity: 3, riskFlags: [] },
   behavior: { behaviorMin: 1, behaviorMax: 4, triggers: [], regulators: [] },
 }

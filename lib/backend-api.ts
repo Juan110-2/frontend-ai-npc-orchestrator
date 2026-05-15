@@ -40,6 +40,8 @@ export type BackendSession = {
   profile_id: string
   scenario_id: string
   user_id: string | null
+  assigned_by: string | null
+  assigned_at: string | null
   current_severity: number
   started_at: string
   ended_at: string | null
@@ -206,6 +208,8 @@ export async function getSession(sessionId: string) {
 export async function startSession(payload: {
   profile_id: string
   scenario_id: string
+  user_id?: string
+  assigned_by?: string
 }) {
   return request<BackendSession>('/sessions/start', {
     method: 'POST',
@@ -365,6 +369,10 @@ export async function getMyProfile() {
 
 export async function adminListUsers() {
   return request<BackendUserProfile[]>('/admin/users')
+}
+
+export async function listStudents() {
+  return request<BackendUserProfile[]>('/admin/students')
 }
 
 export async function adminUpdateUser(
@@ -576,6 +584,7 @@ export type EvaluationListItem = {
   id: string
   session_id: string
   student_id: string | null
+  student_name: string | null
   status: 'draft' | 'submitted' | 'reviewed'
   patient_name: string | null
   started_at: string | null
@@ -588,4 +597,75 @@ export type EvaluationListItem = {
 
 export async function listEvaluations() {
   return request<EvaluationListItem[]>('/evaluation/')
+}
+
+
+/**
+ * Construye un markdown legible con la transcripción de una sesión + metadatos.
+ * Pensado para anexar al TG como evidencia de prueba.
+ */
+export async function exportConversationMarkdown(
+  sessionId: string,
+): Promise<{ filename: string; content: string }> {
+  const [session, history, profile, scenario] = await Promise.all([
+    getSession(sessionId),
+    getConversationHistory(sessionId),
+    null as null | Promise<BackendProfile>,
+    null as null | Promise<BackendScenario>,
+  ])
+
+  const [profileData, scenarioData] = await Promise.all([
+    getProfile(session.profile_id).catch(() => null),
+    getScenario(session.scenario_id).catch(() => null),
+  ])
+
+  const lastPatient = [...history].reverse().find((m) => m.role === 'patient')
+  const model = lastPatient?.ai_model ?? '—'
+  const provider = lastPatient?.ai_provider ?? '—'
+
+  const lines: string[] = []
+  lines.push(`# Transcripción de sesión`)
+  lines.push('')
+  lines.push(`- **Sesión**: \`${session.id}\``)
+  lines.push(`- **Paciente**: ${profileData?.name ?? '—'}`)
+  lines.push(`- **Escenario**: ${scenarioData?.name ?? '—'}`)
+  lines.push(`- **Severidad inicial**: ${scenarioData?.severity ?? '—'} / 5`)
+  lines.push(`- **Severidad final**: ${session.current_severity} / 5`)
+  lines.push(`- **Inicio**: ${new Date(session.started_at).toLocaleString()}`)
+  if (session.ended_at) lines.push(`- **Fin**: ${new Date(session.ended_at).toLocaleString()}`)
+  lines.push(`- **Modelo IA**: ${provider} · \`${model}\``)
+  lines.push(`- **Turnos**: ${history.length}`)
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+  lines.push('## Conversación')
+  lines.push('')
+  for (const m of history) {
+    const who = m.role === 'trainee' ? '**Estudiante**' : '**Paciente**'
+    const time = new Date(m.created_at).toLocaleTimeString()
+    lines.push(`### ${who} · ${time} · severidad ${m.severity}`)
+    lines.push('')
+    lines.push(m.content)
+    if (m.role === 'patient' && (m.tokens_input != null || m.latency_ms != null)) {
+      lines.push('')
+      lines.push(`> _Tokens: ${m.tokens_input ?? 0} in / ${m.tokens_output ?? 0} out · Latencia: ${Math.round(m.latency_ms ?? 0)} ms_`)
+    }
+    lines.push('')
+  }
+
+  const filename = `sesion-${session.id.slice(0, 8)}.md`
+  return { filename, content: lines.join('\n') }
+}
+
+/** Devuelve { provider, model } del último mensaje del paciente, útil para listados. */
+export async function getSessionModelInfo(
+  sessionId: string,
+): Promise<{ provider: string | null; model: string | null }> {
+  try {
+    const history = await getConversationHistory(sessionId)
+    const last = [...history].reverse().find((m) => m.role === 'patient' && m.ai_model)
+    return { provider: last?.ai_provider ?? null, model: last?.ai_model ?? null }
+  } catch {
+    return { provider: null, model: null }
+  }
 }

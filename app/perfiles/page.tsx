@@ -12,7 +12,10 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/page-header'
 import { SeverityRange } from '@/components/severity-gauge'
+import { Paginator, paginate, PAGE_SIZE } from '@/components/paginator'
+import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 import {
   deleteProfile, listProfiles, listScenarios, startSession,
   type BackendProfile, type BackendScenario,
@@ -25,9 +28,17 @@ type CardData = {
 
 export default function PerfilesPage() {
   const router = useRouter()
+  const { userRole, isLoading: authLoading } = useAuth()
   const [items, setItems] = useState<CardData[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (!authLoading && userRole === 'student') {
+      router.push('/sesiones')
+    }
+  }, [authLoading, userRole, router])
 
   const load = async () => {
     setLoading(true)
@@ -50,6 +61,7 @@ export default function PerfilesPage() {
   }
 
   useEffect(() => { void load() }, [])
+  useEffect(() => { setPage(1) }, [search])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return items
@@ -77,26 +89,28 @@ export default function PerfilesPage() {
   }
 
   const handleDelete = async (profileId: string) => {
-    if (!confirm('¿Eliminar este paciente? Las sesiones asociadas también se borrarán.')) return
+    if (!confirm('¿Eliminar este perfil? Las sesiones asociadas también se borrarán.')) return
     try {
       await deleteProfile(profileId)
-      toast.success('Paciente eliminado.')
+      toast.success('Perfil eliminado.')
       void load()
     } catch (err) {
       toast.error('No se pudo eliminar: ' + String(err))
     }
   }
 
+  if (authLoading || userRole === 'student') return null
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <PageHeader
-          title="Perfiles de pacientes"
+          title="Perfiles"
           description="Casos clínicos simulados disponibles para práctica"
         />
         <Link href="/perfiles/new">
           <Button>
-            <Plus className="mr-1 h-4 w-4" /> Nuevo paciente
+            <Plus className="mr-1 h-4 w-4" /> Nuevo perfil
           </Button>
         </Link>
       </div>
@@ -114,20 +128,20 @@ export default function PerfilesPage() {
       </div>
 
       {loading ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando…</CardContent></Card>
+        <Card><CardContent><LoadingState className="py-8" /></CardContent></Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <UserIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {items.length === 0
-                ? 'Aún no has creado ningún paciente. Empieza creando uno.'
+                ? 'Aún no has creado ningún perfil. Empieza creando uno.'
                 : 'No hay resultados para tu búsqueda.'}
             </p>
             {items.length === 0 && (
               <Link href="/perfiles/new">
                 <Button className="mt-3" size="sm">
-                  <Plus className="mr-1 h-4 w-4" /> Crear primer paciente
+                  <Plus className="mr-1 h-4 w-4" /> Crear primer perfil
                 </Button>
               </Link>
             )}
@@ -135,7 +149,7 @@ export default function PerfilesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(({ profile }) => {
+          {paginate(filtered, page).map(({ profile }) => {
             const traits = (profile.traits ?? {}) as Record<string, unknown>
             const age = traits.age as number | undefined
             const occupation = traits.occupation as string | undefined
@@ -173,7 +187,7 @@ export default function PerfilesPage() {
                     </div>
                   )}
 
-                  <div className="mt-auto flex items-center justify-between border-t pt-3">
+                  <div className="mt-auto flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-muted-foreground">
                       {behaviorMin != null && behaviorMax != null ? (
                         <div className="inline-flex items-center gap-2">
@@ -186,11 +200,12 @@ export default function PerfilesPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
                       <Button
                         size="sm" variant="ghost"
                         onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
                         title="Editar"
+                        className="w-full sm:w-auto"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -198,15 +213,18 @@ export default function PerfilesPage() {
                         size="sm" variant="ghost"
                         onClick={() => handleDelete(profile.id)}
                         title="Eliminar"
+                        className="w-full sm:w-auto"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                       <Button
                         size="sm"
                         variant="default"
+                        className="w-full sm:w-auto"
                         onClick={() => handlePractice(profile.id)}
                       >
-                        <Play className="mr-1 h-3 w-3" /> Practicar
+                        <Play className="h-3 w-3 sm:mr-1" />
+                        <span className="hidden sm:inline">Practicar</span>
                       </Button>
                     </div>
                   </div>
@@ -216,6 +234,7 @@ export default function PerfilesPage() {
           })}
         </div>
       )}
+      <Paginator total={filtered.length} page={page} onPageChange={setPage} />
     </div>
   )
 }

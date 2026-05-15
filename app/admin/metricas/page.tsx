@@ -140,6 +140,7 @@ export default function AdminMetricsPage() {
                       <TableHead className="text-right">% éxito</TableHead>
                       <TableHead className="text-right">p50 ms</TableHead>
                       <TableHead className="text-right">p95 ms</TableHead>
+                      <TableHead className="text-right">p99 ms</TableHead>
                       <TableHead className="text-right">Tokens in (μ)</TableHead>
                       <TableHead className="text-right">Tokens out (μ)</TableHead>
                       <TableHead className="text-right">% JSON válido</TableHead>
@@ -156,6 +157,7 @@ export default function AdminMetricsPage() {
                         <TableCell className="text-right">{r.success_rate_pct ?? "—"}</TableCell>
                         <TableCell className="text-right">{r.p50_latency_ms != null ? Math.round(r.p50_latency_ms) : "—"}</TableCell>
                         <TableCell className="text-right">{r.p95_latency_ms != null ? Math.round(r.p95_latency_ms) : "—"}</TableCell>
+                        <TableCell className="text-right">{r.p99_latency_ms != null ? Math.round(r.p99_latency_ms) : "—"}</TableCell>
                         <TableCell className="text-right">{r.mean_tokens_input != null ? Math.round(r.mean_tokens_input) : "—"}</TableCell>
                         <TableCell className="text-right">{r.mean_tokens_output != null ? Math.round(r.mean_tokens_output) : "—"}</TableCell>
                         <TableCell className="text-right">{r.json_valid_rate_pct ?? "—"}</TableCell>

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Plus, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SeverityGauge } from '@/components/severity-gauge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,30 +14,48 @@ import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import { toast } from 'sonner'
 import { getScenario, updateScenario } from '@/lib/backend-api'
+import { LoadingState } from '@/components/ui-states'
+import { useAuth } from '@/lib/auth-context'
 
 export default function EditarEscenarioPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const id = params?.id as string
+  const { userRole, isLoading: authLoading } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [context, setContext] = useState('')
   const [severity, setSeverity] = useState(3)
   const [riskFlags, setRiskFlags] = useState<string[]>([])
   const [draftFlag, setDraftFlag] = useState('')
+  const [constraintsExtras, setConstraintsExtras] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
+    if (!authLoading && userRole === 'student') {
+      router.push('/sesiones')
+      return
+    }
     if (!id) return
     void (async () => {
       try {
         const s = await getScenario(id)
+        const constraints = (s.constraints ?? {}) as Record<string, unknown>
+        const knownKeys = new Set(['description'])
+
         setName(s.name)
+        setDescription(typeof constraints.description === 'string' ? constraints.description : '')
         setContext(s.context)
         setSeverity(s.severity)
         setRiskFlags(s.risk_flags ?? [])
+        setConstraintsExtras(
+          Object.fromEntries(
+            Object.entries(constraints).filter(([key]) => !knownKeys.has(key))
+          )
+        )
       } catch (err) {
         toast.error('No se pudo cargar el escenario: ' + String(err))
       } finally {
@@ -59,11 +78,17 @@ export default function EditarEscenarioPage() {
     }
     setSaving(true)
     try {
+      const constraints: Record<string, unknown> = {
+        ...constraintsExtras,
+        description,
+      }
+
       await updateScenario(id, {
         name,
         context,
         severity,
         risk_flags: riskFlags,
+        constraints,
       })
       toast.success('Escenario actualizado.')
       router.push('/escenarios')
@@ -74,10 +99,12 @@ export default function EditarEscenarioPage() {
     }
   }
 
+  if (authLoading || userRole === 'student') return null
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
-        <Card><CardContent className="p-6 text-center text-muted-foreground">Cargando…</CardContent></Card>
+        <Card><CardContent><LoadingState className="py-8" /></CardContent></Card>
       </div>
     )
   }
@@ -100,12 +127,21 @@ export default function EditarEscenarioPage() {
           <CardTitle className="text-base">Configuración del escenario</CardTitle>
           <CardDescription>Los cambios se aplicarán a las próximas sesiones.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
+        <CardContent className="space-y-6">
+            <div className="space-y-2">
             <Label>Nombre *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ej. Sobrecarga académica en universidad" />
           </div>
-          <div>
+            <div className="space-y-2">
+              <Label>Descripción *</Label>
+              <Textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe brevemente el objetivo del escenario."
+              />
+            </div>
+            <div className="space-y-2">
             <Label>Contexto narrativo *</Label>
             <Textarea
               rows={4}
@@ -114,21 +150,28 @@ export default function EditarEscenarioPage() {
               placeholder="¿Qué está viviendo el paciente al iniciar la sesión?"
             />
           </div>
-          <div>
-            <Label>Severidad inicial · {severity} / 5</Label>
-            <Slider value={[severity]} min={0} max={5} step={1} onValueChange={(v) => setSeverity(v[0])} />
-            <p className="mt-1 text-xs text-muted-foreground">
-              0 = calmado · 5 = en crisis
-            </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Severidad inicial · {severity} / 5</Label>
+              <Slider value={[severity]} min={1} max={5} step={1} onValueChange={(v) => setSeverity(v[0])} />
+              <div className="pt-1">
+                <SeverityGauge level={severity} size="md" showLabel />
+              </div>
+            </div>
           </div>
-          <div>
-            <Label>Banderas de riesgo</Label>
-            <div className="mt-2 mb-2 flex flex-wrap gap-1.5">
-              {riskFlags.length === 0
-                ? <span className="text-xs text-muted-foreground">Sin banderas.</span>
-                : riskFlags.map((f, i) => (
-                    <Badge key={`${f}-${i}`} variant="outline" className="gap-1.5">
-                      <AlertTriangle className="h-3 w-3" /> {f}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Banderas de riesgo</Label>
+              <span className="text-xs text-muted-foreground">{riskFlags.length} activas</span>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="flex flex-wrap gap-2">
+                {riskFlags.length === 0
+                  ? <span className="text-xs text-muted-foreground">Sin banderas.</span>
+                  : riskFlags.map((f, i) => (
+                    <Badge key={`${f}-${i}`} variant="outline" className="gap-1.5 bg-background">
+                      <AlertTriangle className="h-3 w-3 text-amber-600" /> {f}
                       <button
                         onClick={() => setRiskFlags(riskFlags.filter((_, j) => j !== i))}
                         className="hover:text-destructive"
@@ -136,23 +179,25 @@ export default function EditarEscenarioPage() {
                       >×</button>
                     </Badge>
                   ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={draftFlag}
-                onChange={(e) => setDraftFlag(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFlag() } }}
-                placeholder="ej. insomnio"
-              />
-              <Button type="button" variant="outline" onClick={addFlag}>
-                <Plus className="h-4 w-4" />
-              </Button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  value={draftFlag}
+                  onChange={(e) => setDraftFlag(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFlag() } }}
+                  placeholder="ej. insomnio"
+                  className="h-10"
+                />
+                <Button type="button" variant="outline" onClick={addFlag} className="h-10 w-10 p-0">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-6 flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           <Save className="mr-1 h-4 w-4" /> {saving ? 'Guardando…' : 'Guardar cambios'}
         </Button>
