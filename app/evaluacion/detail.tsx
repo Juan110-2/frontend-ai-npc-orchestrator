@@ -241,7 +241,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         </CardContent>
       </Card>
 
-      // Rúbrica del docente (si existe) para evaluación manual
+      {/* Rúbrica del docente */}
       {rubric && (
         <Card>
           <CardHeader>

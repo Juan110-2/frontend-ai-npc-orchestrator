@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -129,14 +129,14 @@ export default function WizardPerfilPage() {
     }
   }, [authLoading, userRole, router])
 
-  // — Dialogs de escenario —
+  // Diálogos de escenario
   const [scenarioCreateOpen, setScenarioCreateOpen] = useState(false)
   const [scenarioSearchOpen, setScenarioSearchOpen] = useState(false)
   const [scenarioOptions, setScenarioOptions] = useState<BackendScenario[]>([])
   const [scenarioQuery, setScenarioQuery] = useState('')
   const [scenarioLoading, setScenarioLoading] = useState(false)
 
-  // — Estado de asignación —
+  // Estado de asignación
   const [assignMode, setAssignMode] = useState<AssignMode>('self')
   const [selfSessionMode, setSelfSessionMode] = useState<SelfSessionMode>('now')
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
@@ -144,12 +144,12 @@ export default function WizardPerfilPage() {
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [studentQuery, setStudentQuery] = useState('')
 
-  // — Estado del formulario —
+  // Estado del formulario
   const [form, setForm] = useState<ProfileTemplate>(BLANK_TEMPLATE)
 
   const hasScenario = !!form.scenario.name.trim()
 
-  // ── Navegación entre pasos ─────────────────────────────────────────────────────────
+  // Navegación entre pasos
 
   const useTemplate = (tpl: ProfileTemplate) => {
     setForm(tpl)
@@ -183,7 +183,7 @@ export default function WizardPerfilPage() {
   const effectiveSteps = ALL_STEPS.filter((s) => s.id !== 'assign' || hasScenario)
   const effectiveIndex = effectiveSteps.findIndex((s) => s.id === ALL_STEPS[stepIndex].id)
 
-  // ── Helpers de estado ───────────────────────────────────────────────────────
+  // Helpers de estado
 
   const setIdentity = (patch: Partial<ProfileTemplate['identity']>) =>
     setForm((f) => ({ ...f, identity: { ...f.identity, ...patch } }))
@@ -198,7 +198,7 @@ export default function WizardPerfilPage() {
   const setBehavior = (patch: Partial<ProfileTemplate['behavior']>) =>
     setForm((f) => ({ ...f, behavior: { ...f.behavior, ...patch } }))
 
-  // ── Carga de escenarios existentes ──────────────────────────────────────────
+  // Carga de escenarios existentes
 
   useEffect(() => {
     if (!scenarioSearchOpen || scenarioOptions.length > 0) return
@@ -227,7 +227,7 @@ export default function WizardPerfilPage() {
     setScenarioSearchOpen(false)
   }
 
-  // ── Carga de estudiantes ─────────────────────────────────────────────────
+  // Carga de estudiantes
 
   useEffect(() => {
     if (ALL_STEPS[stepIndex].id !== 'assign' || assignMode !== 'students') return
@@ -265,7 +265,7 @@ export default function WizardPerfilPage() {
     )
   })
 
-  // ── Validación por paso ──────────────────────────────────────────────────────
+  // Validación por paso
 
   const canNext = (() => {
     const id = ALL_STEPS[stepIndex].id
@@ -278,7 +278,7 @@ export default function WizardPerfilPage() {
     return true
   })()
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
+  // Submit
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -360,7 +360,7 @@ export default function WizardPerfilPage() {
         </p>
       </div>
 
-      // wizard y demás componentes aquí...
+      {/* wizard y demás componentes aquí... */}
       <div className="mb-6 overflow-x-auto pb-2">
         <div className="flex min-w-[520px] items-center gap-2">
           {effectiveSteps.map((s, i) => (
@@ -386,7 +386,7 @@ export default function WizardPerfilPage() {
         Paso {effectiveIndex + 1} de {effectiveSteps.length} · {ALL_STEPS[stepIndex].title}
       </p>
 
-      // ── PLANTILLA ──────────────────────────────────────────────────────────── 
+      {/* ── PLANTILLA ──────────────────────────────────────────────────────────── */}
       {stepId === 'template' && (
         <Card>
           <CardHeader>
@@ -424,7 +424,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── IDENTIDAD ────────────────────────────────────────────────────────────
+      {/* ── IDENTIDAD ──────────────────────────────────────────────────────────── */}
       {stepId === 'identity' && (
         <Card>
           <CardHeader>
@@ -471,7 +471,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── PERFIL PSICOLÓGICO ────────────────────────────────────────────────────
+      {/* ── PERFIL PSICOLÓGICO ──────────────────────────────────────────────────── */}
       {stepId === 'psych' && (
         <Card>
           <CardHeader>
@@ -501,7 +501,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── ESCENARIO ────────────────────────────────────────────────────────────
+      {/* ── ESCENARIO ──────────────────────────────────────────────────────────── */}
       {stepId === 'scenario' && (
         <Card>
           <CardHeader>
@@ -581,7 +581,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── ASIGNACIÓN ───────────────────────────────────────────────────────────
+      {/* ── ASIGNACIÓN ─────────────────────────────────────────────────────────── */}
       {stepId === 'assign' && (
         <Card>
           <CardHeader>
@@ -720,7 +720,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── COMPORTAMIENTO ───────────────────────────────────────────────────────
+      {/* ── COMPORTAMIENTO ─────────────────────────────────────────────────────── */}
       {stepId === 'behavior' && (
         <Card>
           <CardHeader>
@@ -836,7 +836,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      //  ── REVISAR Y CREAR ────────────────────────────────────────────────────── 
+      {/* ── REVISAR Y CREAR ────────────────────────────────────────────────────── */}
       {stepId === 'review' && (
         <Card>
           <CardHeader>
@@ -908,7 +908,7 @@ export default function WizardPerfilPage() {
         </Card>
       )}
 
-      // ── Dialogs de escenario ──────────────────────────────────────────────────
+      {/* Dialogs de escenario */}
       <Dialog open={scenarioCreateOpen} onOpenChange={setScenarioCreateOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1067,7 +1067,7 @@ export default function WizardPerfilPage() {
         </DialogContent>
       </Dialog>
 
-      // ── Navegación ───────────────────────────────────────────────────────────
+      {/* Navegación */}
       <div className="mt-6 flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={back} disabled={stepIndex === 0 || submitting} className="sm:w-auto">
           <ArrowLeft className="mr-1 h-4 w-4" /> Atrás
