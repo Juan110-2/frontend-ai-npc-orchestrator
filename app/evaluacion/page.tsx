@@ -235,7 +235,7 @@ function EvaluationCard({ ev, onOpen }: { ev: EvaluationListItem; onOpen: () => 
           </div>
           <div>
             <p className="text-muted-foreground">Sev. final</p>
-            <p className="font-medium">{sevFinal ?? "—"}</p>
+            <p className="font-medium">{sevFinal != null ? sevFinal.toFixed(1) : "—"}</p>
           </div>
         </div>
       </CardContent>

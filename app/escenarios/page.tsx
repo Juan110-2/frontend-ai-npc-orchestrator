@@ -117,7 +117,7 @@ export default function EscenariosPage() {
               <CardContent className="flex flex-col p-4">
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <p className="font-medium leading-tight">{s.name}</p>
-                  <SeverityGauge level={s.severity} size="sm" />
+                  <SeverityGauge level={s.severity} size="sm" showValue />
                 </div>
                 <p className="mb-3 line-clamp-3 text-sm text-muted-foreground">
                   {s.context}

@@ -152,7 +152,7 @@ export interface Message {
 }
 
 export interface SessionState {
-  currentSeverity: SeverityLevel;
+  currentSeverity: number;  // float 0.0–5.0
   activeRiskFlags: string[];
   turnCount: number;
   totalDuration: number; // seconds

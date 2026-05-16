@@ -154,6 +154,12 @@ export default function PerfilesPage() {
             const age = traits.age as number | undefined
             const occupation = traits.occupation as string | undefined
             const personality = (traits.personality as string[]) ?? []
+            const commStyle = (traits.communication_style as string[]) ?? []
+            const MAX_TAGS = 3
+            const persShown = personality.slice(0, MAX_TAGS)
+            const persExtra = personality.length - persShown.length
+            const commShown = commStyle.slice(0, MAX_TAGS)
+            const commExtra = commStyle.length - commShown.length
             const behavior = (profile.behavior ?? {}) as Record<string, unknown>
             const behaviorMin = behavior.behavior_min as number | undefined
             const behaviorMax = behavior.behavior_max as number | undefined
@@ -179,11 +185,28 @@ export default function PerfilesPage() {
 
                   <p className="mb-3 line-clamp-2 text-sm">{profile.description}</p>
 
-                  {personality.length > 0 && (
-                    <div className="mb-3 flex flex-wrap gap-1">
-                      {personality.slice(0, 4).map((p) => (
-                        <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
-                      ))}
+                  {persShown.length > 0 && (
+                    <div className="mb-1 flex items-center gap-1">
+                      <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                        {persShown.map((t) => (
+                          <span key={t} className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{t}</span>
+                        ))}
+                      </div>
+                      {persExtra > 0 && (
+                        <span className="shrink-0 rounded border border-muted-foreground/30 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">+{persExtra}</span>
+                      )}
+                    </div>
+                  )}
+                  {commShown.length > 0 && (
+                    <div className="mb-3 flex items-center gap-1">
+                      <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                        {commShown.map((t) => (
+                          <span key={t} className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-700 dark:text-sky-400">{t}</span>
+                        ))}
+                      </div>
+                      {commExtra > 0 && (
+                        <span className="shrink-0 rounded border border-sky-400/40 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400">+{commExtra}</span>
+                      )}
                     </div>
                   )}
 

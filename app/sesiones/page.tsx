@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/page-header';
 import { LoadingState } from '@/components/ui-states';
-import { SeverityBadge } from '@/components/severity-badge';
+import { SeverityGauge, SeverityRange } from '@/components/severity-gauge';
 import type { Sesion, SessionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
@@ -171,7 +171,7 @@ function NuevaSesionDialog({
           <Plus className="mr-2 h-4 w-4" /> Nueva sesión
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-full !max-w-5xl">
         <DialogHeader>
           <DialogTitle>
             {createdSession ? '¡Sesión creada!' : 'Nueva sesión de simulación'}
@@ -228,32 +228,66 @@ function NuevaSesionDialog({
                   const bMin = behavior.behavior_min as number | undefined;
                   const bMax = behavior.behavior_max as number | undefined;
                   const personality = (traits.personality as string[]) ?? [];
+                  const commStyle = (traits.communication_style as string[]) ?? [];
                   const isSelected = selectedProfile?.id === p.id;
+
+                  const MAX_TAGS = 3;
+                  const persShown = personality.slice(0, MAX_TAGS);
+                  const persExtra = personality.length - persShown.length;
+                  const commShown = commStyle.slice(0, MAX_TAGS);
+                  const commExtra = commStyle.length - commShown.length;
+
                   return (
                     <button
                       key={p.id}
                       onClick={() => setSelectedProfile(isSelected ? null : p)}
                       className={cn(
-                        'flex w-full items-start gap-2.5 rounded-md p-2.5 text-left transition-colors hover:bg-muted/60',
-                        isSelected && 'bg-primary/10 ring-1 ring-inset ring-primary/30'
+                        'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
+                        isSelected && 'border-primary/40 bg-primary/5'
                       )}
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      <div className={cn(
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      )}>
                         {initials(p.name) || '·'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{p.name}</p>
+                        <p className="truncate text-sm font-semibold">{p.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {age ? `${age} años` : 'Edad sin definir'}
-                          {bMin != null && bMax != null ? ` · Sev ${bMin}–${bMax}` : ''}
                         </p>
-                        {personality.length > 0 && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {personality.slice(0, 2).join(', ')}
-                          </p>
+                        {persShown.length > 0 && (
+                          <div className="mt-0.5 flex items-center gap-1">
+                            <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                              {persShown.map(t => (
+                                <span key={t} className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                              ))}
+                            </div>
+                            {persExtra > 0 && (
+                              <span className="shrink-0 rounded border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">+{persExtra}</span>
+                            )}
+                          </div>
+                        )}
+                        {commShown.length > 0 && (
+                          <div className="mt-0.5 flex items-center gap-1">
+                            <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                              {commShown.map(t => (
+                                <span key={t} className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-700 dark:text-sky-400">{t}</span>
+                              ))}
+                            </div>
+                            {commExtra > 0 && (
+                              <span className="shrink-0 rounded border border-sky-400/40 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-400">+{commExtra}</span>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {isSelected && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
+                      <div className="flex shrink-0 flex-col items-end justify-center gap-1">
+                        {bMin != null && bMax != null && (
+                          <SeverityRange min={bMin} max={bMax} size="sm" showLabel />
+                        )}
+                      </div>
+                      {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                     </button>
                   );
                 })}
@@ -284,20 +318,21 @@ function NuevaSesionDialog({
                       key={s.id}
                       onClick={() => setSelectedScenario(isSelected ? null : s)}
                       className={cn(
-                        'flex w-full items-start gap-2.5 rounded-md p-2.5 text-left transition-colors hover:bg-muted/60',
-                        isSelected && 'bg-primary/10 ring-1 ring-inset ring-primary/30'
+                        'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
+                        isSelected && 'border-primary/40 bg-primary/5'
                       )}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium">{s.name}</p>
-                          <SeverityBadge level={Math.max(1, Math.min(5, s.severity)) as 1 | 2 | 3 | 4 | 5} size="sm" />
-                        </div>
+                        <p className="text-sm font-semibold leading-snug">{s.name}</p>
                         {s.context && (
                           <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.context}</p>
                         )}
                       </div>
-                      {isSelected && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
+                      <div className="flex shrink-0 flex-col items-end justify-center gap-0.5">
+                        <span className="text-[10px] text-muted-foreground/60">Sev · {s.severity}</span>
+                        <SeverityGauge level={s.severity} size="sm" />
+                      </div>
+                      {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                     </button>
                   );
                 })}
@@ -504,7 +539,7 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <SeverityBadge level={sesion.state.currentSeverity} size="sm" />
+            <SeverityGauge level={sesion.state.currentSeverity} size="sm" showValue />
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               {formatDuration(sesion.state.totalDuration)}
@@ -604,7 +639,7 @@ export default function SesionesPage() {
           escenarioName: scenario?.name || 'Escenario no encontrado',
           status: session.ended_at ? 'completed' : 'active',
           state: {
-            currentSeverity: Math.max(1, Math.min(5, session.current_severity)) as 1 | 2 | 3 | 4 | 5,
+            currentSeverity: Math.max(0, Math.min(5, session.current_severity)),
             activeRiskFlags: [],
             turnCount: 0,
             totalDuration: Math.max(0, Math.floor(((endedAt?.getTime() || now) - startedAt.getTime()) / 1000)),

@@ -828,7 +828,7 @@ function ChatPageContent() {
               <div className="border-b bg-muted/30 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-medium text-muted-foreground">Severidad actual</span>
-                  <SeverityGauge level={activeSession?.current_severity ?? escenario?.severity ?? 0} size="sm" />
+                  <SeverityGauge level={activeSession?.current_severity ?? escenario?.severity ?? 0} size="sm" showValue />
                 </div>
               </div>
               <SessionContextPanel
