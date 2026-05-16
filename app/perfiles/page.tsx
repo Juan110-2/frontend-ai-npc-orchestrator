@@ -9,10 +9,9 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/page-header'
 import { SeverityRange } from '@/components/severity-gauge'
-import { Paginator, paginate, PAGE_SIZE } from '@/components/paginator'
+import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -189,7 +188,7 @@ export default function PerfilesPage() {
                     <div className="mb-1 flex items-center gap-1">
                       <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
                         {persShown.map((t) => (
-                          <span key={t} className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{t}</span>
+                          <span key={t} className="shrink min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{t}</span>
                         ))}
                       </div>
                       {persExtra > 0 && (
@@ -201,7 +200,7 @@ export default function PerfilesPage() {
                     <div className="mb-3 flex items-center gap-1">
                       <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
                         {commShown.map((t) => (
-                          <span key={t} className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-700 dark:text-sky-400">{t}</span>
+                          <span key={t} className="shrink min-w-0 truncate rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-700 dark:text-sky-400">{t}</span>
                         ))}
                       </div>
                       {commExtra > 0 && (
@@ -210,7 +209,7 @@ export default function PerfilesPage() {
                     </div>
                   )}
 
-                  <div className="mt-auto flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  {/* <div className="mt-auto flex flex-col gap-2 border-t pt-3">
                     <div className="text-xs text-muted-foreground">
                       {behaviorMin != null && behaviorMax != null ? (
                         <div className="inline-flex items-center gap-2">
@@ -223,12 +222,11 @@ export default function PerfilesPage() {
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
+                    <div className="flex justify-end gap-2">
                       <Button
                         size="sm" variant="ghost"
                         onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
                         title="Editar"
-                        className="w-full sm:w-auto"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -236,19 +234,63 @@ export default function PerfilesPage() {
                         size="sm" variant="ghost"
                         onClick={() => handleDelete(profile.id)}
                         title="Eliminar"
-                        className="w-full sm:w-auto"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                       <Button
                         size="sm"
                         variant="default"
-                        className="w-full sm:w-auto"
                         onClick={() => handlePractice(profile.id)}
                       >
-                        <Play className="h-3 w-3 sm:mr-1" />
-                        <span className="hidden sm:inline">Practicar</span>
+                        <Play className="h-3 w-3 mr-1" />
+                        Practicar
                       </Button>
+                    </div>
+                  </div> */}
+                  <div className="mt-auto border-t pt-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <div className="min-w-0 text-xs text-muted-foreground">
+                        {behaviorMin != null && behaviorMax != null ? (
+                          <div className="inline-flex items-center gap-2">
+                            <span>Rango</span>
+                            <SeverityRange min={behaviorMin} max={behaviorMax} size="sm" />
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-amber-600">
+                            <AlertTriangle className="h-3 w-3" /> Sin comportamiento
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex w-full items-center justify-between sm:ml-auto sm:w-auto sm:justify-end sm:gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(profile.id)}
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handlePractice(profile.id)}
+                          className="shrink-0"
+                        >
+                          <Play className="mr-1 h-3 w-3" />
+                          Practicar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
