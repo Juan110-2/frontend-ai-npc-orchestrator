@@ -38,11 +38,11 @@ export default function RecuperarContrasenaPage() {
         {/* Header Univalle */}
         <div className="bg-white px-8 pt-8 pb-4 text-center border-b">
           <div className="flex items-center justify-center gap-3 mb-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded bg-[#8B0000]">
+            <div className="flex h-12 w-12 items-center justify-center rounded bg-[var(--app-panel-header-color)]">
               <span className="text-white font-bold text-lg">UV</span>
             </div>
             <div className="text-left">
-              <h1 className="text-xl font-bold text-[#8B0000] leading-tight">Universidad del Valle</h1>
+              <h1 className="text-xl font-bold text-[color:var(--app-panel-header-color)] leading-tight">Universidad del Valle</h1>
               <p className="text-xs text-gray-500">PsicoSim — Simulación Clínica Virtual</p>
             </div>
           </div>
@@ -63,7 +63,7 @@ export default function RecuperarContrasenaPage() {
               </div>
               <button
                 onClick={() => { setSent(false); setEmail('') }}
-                className="text-sm text-[#8B0000] underline hover:opacity-80"
+                className="text-sm text-[color:var(--app-panel-header-color)] underline hover:opacity-80"
               >
                 Usar otro correo
               </button>
@@ -93,11 +93,7 @@ export default function RecuperarContrasenaPage() {
                     autoComplete="email"
                   />
                 </div>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-[#8B0000] hover:bg-[#6b0000] text-white"
-                >
+                <Button type="submit" disabled={isLoading} className="w-full btn-principal">
                   <Mail className="mr-2 h-4 w-4" />
                   {isLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
                 </Button>
@@ -121,7 +117,7 @@ export default function RecuperarContrasenaPage() {
           <p>Universidad del Valle, Copyright © {new Date().getFullYear()} PsicoSim.</p>
           <p>
             Cualquier problema con el sistema por favor informar a:{' '}
-            <a href="mailto:soporte@psicosim.edu.co" className="text-[#8B0000] underline hover:opacity-80">
+            <a href="mailto:soporte@psicosim.edu.co" className="text-[color:var(--app-panel-header-color)] underline hover:opacity-80">
               soporte@psicosim.edu.co
             </a>
           </p>

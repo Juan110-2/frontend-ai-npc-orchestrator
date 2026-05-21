@@ -106,8 +106,8 @@ export default function CredencialesPage() {
             asChild
             type="button"
             variant="outline"
-            className="w-full border-red-500 text-red-700 hover:text-red-700 active:text-red-700 hover:bg-red-100 active:bg-red-200 hover:border-red-600 active:border-red-700 transition-colors"
-            >
+            className="w-full border-[var(--app-panel-header-color)] text-[color:var(--app-panel-header-color)] hover:text-[color:var(--app-panel-header-color)] active:text-[color:var(--app-panel-header-color)] hover:bg-[var(--app-panel-header-soft-color)] active:bg-[var(--app-panel-header-soft-color)] transition-colors"
+          >
             <Link href="/auth/recuperar-credenciales">
               ¿Ayuda, no tengo/conozco mi contraseña?
             </Link>

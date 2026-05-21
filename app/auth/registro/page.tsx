@@ -60,8 +60,8 @@ export default function RegisterPage() {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md text-center">
           <CardHeader className="space-y-3">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Brain className="h-6 w-6 text-primary" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--app-panel-header-soft-color)]">
+              <Brain className="h-6 w-6 text-[color:var(--app-panel-header-color)]" />
             </div>
             <CardTitle className="text-2xl">Revisa tu correo</CardTitle>
             <CardDescription>
@@ -83,8 +83,8 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <Brain className="h-6 w-6 text-primary" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--app-panel-header-soft-color)]">
+            <Brain className="h-6 w-6 text-[color:var(--app-panel-header-color)]" />
           </div>
           <CardTitle className="text-2xl">Crear cuenta</CardTitle>
           <CardDescription>Únete a la plataforma de simulación situacional</CardDescription>
@@ -169,7 +169,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            <Button className="w-full" type="submit" disabled={isLoading}>
+            <Button className="w-full btn-principal" type="submit" disabled={isLoading}>
               <UserPlus className="mr-2 h-4 w-4" />
               {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
             </Button>
@@ -177,7 +177,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/auth/login" className="underline hover:text-foreground">
+            <Link href="/auth/login" className="underline hover:text-[color:var(--app-panel-header-color)]">
               Inicia sesión
             </Link>
           </p>
