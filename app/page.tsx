@@ -40,10 +40,10 @@ export default function DashboardPage() {
     void (async () => {
       try {
         setLoading(true)
-        const [p, sc, ss] = await Promise.all([
+        const [p, sc, { items: ss }] = await Promise.all([
           listProfiles(),
           listScenarios(),
-          listSessions(),
+          listSessions({ limit: 100 }),
         ])
         setProfiles(p)
         setScenarios(sc)

@@ -4,6 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --app-panel-header-color: #d50000;
+  --app-panel-header-hover-color: #b30000;
+  --app-panel-header-soft-color: #fbeaea;
+  --app-panel-text-color: #ffffff;
   --background: oklch(0.98 0.002 240);
   --foreground: oklch(0.15 0.01 260);
   --card: oklch(1 0 0);
@@ -22,7 +26,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.88 0.01 240);
   --input: oklch(0.92 0.005 240);
-  --ring: oklch(0.55 0.15 250);
+  --ring: oklch(0.75 0 0);
   --chart-1: oklch(0.55 0.15 250);
   --chart-2: oklch(0.6 0.15 170);
   --chart-3: oklch(0.65 0.18 45);
@@ -60,6 +64,27 @@
   --info: oklch(0.55 0.15 250);
 }
 
+.btn-principal {
+  color: var(--app-panel-text-color);
+  background-color: var(--app-panel-header-color) !important;
+  border-color: var(--app-panel-header-color) !important;
+}
+
+.btn-principal:hover {
+  background-color: var(--app-panel-header-hover-color) !important;
+  border-color: var(--app-panel-header-hover-color) !important;
+}
+
+.btn-principal:active {
+  background-color: var(--app-panel-header-hover-color) !important;
+  border-color: var(--app-panel-header-hover-color) !important;
+}
+
+.btn-principal:focus-visible {
+  outline: 2px solid var(--app-panel-header-color);
+  outline-offset: 2px;
+}
+
 .dark {
   --background: oklch(0.12 0.02 260);
   --foreground: oklch(0.92 0.01 240);
@@ -79,7 +104,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.28 0.02 260);
   --input: oklch(0.22 0.02 260);
-  --ring: oklch(0.55 0.15 250);
+  --ring: oklch(0.6 0 0);
   --chart-1: oklch(0.6 0.15 250);
   --chart-2: oklch(0.65 0.15 170);
   --chart-3: oklch(0.7 0.18 45);

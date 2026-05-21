@@ -196,6 +196,7 @@ function EvaluationCard({ ev, onOpen }: { ev: EvaluationListItem; onOpen: () => 
   const metrics = ev.automatic_metrics as Record<string, unknown>
   const turns = (metrics?.turns_trainee as number | undefined) ?? 0
   const dur = (metrics?.duration_minutes as number | undefined) ?? null
+  const durSource = (metrics?.duration_source as string | undefined) ?? null
   const sevFinal = (metrics?.severity_final as number | undefined) ?? null
 
   return (
@@ -231,7 +232,9 @@ function EvaluationCard({ ev, onOpen }: { ev: EvaluationListItem; onOpen: () => 
           </div>
           <div>
             <p className="text-muted-foreground">Duración</p>
-            <p className="font-medium">{dur != null ? `${dur.toFixed(1)} min` : "—"}</p>
+            <p className="font-medium">
+              {dur != null ? `${durSource === "estimated" ? "~" : ""}${dur.toFixed(1)} min` : "—"}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Sev. final</p>

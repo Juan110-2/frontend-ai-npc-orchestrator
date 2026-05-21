@@ -294,7 +294,7 @@ export default function WizardPerfilPage() {
           communication_style: form.psych.communicationStyle,
         },
         behavior: {
-          behavior_min: form.behavior.behaviorMin,
+          behavior_min: 0,
           behavior_max: form.behavior.behaviorMax,
           triggers: form.behavior.triggers,
           regulators: form.behavior.regulators,
@@ -729,28 +729,15 @@ export default function WizardPerfilPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
-              <Label>Rango de severidad permitido</Label>
+              <Label>Severidad máxima del paciente · {form.behavior.behaviorMax}</Label>
               <p className="mb-3 text-xs text-muted-foreground">
-                Mínimo {form.behavior.behaviorMin} · Máximo {form.behavior.behaviorMax}
+                El paciente siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
               </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="text-xs">Mínimo</Label>
-                  <Slider
-                    value={[form.behavior.behaviorMin]}
-                    min={1} max={5} step={1}
-                    onValueChange={(v) => setBehavior({ behaviorMin: v[0] })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Máximo</Label>
-                  <Slider
-                    value={[form.behavior.behaviorMax]}
-                    min={1} max={5} step={1}
-                    onValueChange={(v) => setBehavior({ behaviorMax: v[0] })}
-                  />
-                </div>
-              </div>
+              <Slider
+                value={[form.behavior.behaviorMax]}
+                min={1} max={5} step={1}
+                onValueChange={(v) => setBehavior({ behaviorMax: v[0] })}
+              />
             </div>
 
             <div>
@@ -882,7 +869,7 @@ export default function WizardPerfilPage() {
                 )}
                 <p className="mt-2 text-sm text-muted-foreground">{form.scenario.context}</p>
                 <p className="mt-2 text-xs">
-                  Severidad inicial: <strong>{form.scenario.severity} / 5</strong> · Rango permitido {form.behavior.behaviorMin}–{form.behavior.behaviorMax}
+                  Severidad inicial: <strong>{form.scenario.severity} / 5</strong> · Máximo permitido {form.behavior.behaviorMax}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {form.scenario.riskFlags.length === 0 ? (

@@ -88,7 +88,6 @@ export default function EditarPerfilPage() {
   const [personality, setPersonality] = useState<string[]>([])
   const [communicationStyle, setCommunicationStyle] = useState<string[]>([])
   // Comportamiento
-  const [behaviorMin, setBehaviorMin] = useState(1)
   const [behaviorMax, setBehaviorMax] = useState(4)
   const [triggers, setTriggers] = useState<ItemNameDesc[]>([])
   const [regulators, setRegulators] = useState<ItemNameDesc[]>([])
@@ -120,7 +119,6 @@ export default function EditarPerfilPage() {
         setDescription(p.description ?? '')
         setPersonality(Array.isArray(t.personality) ? t.personality : [])
         setCommunicationStyle(Array.isArray(t.communication_style) ? t.communication_style : [])
-        setBehaviorMin(Number(b.behavior_min ?? 1))
         setBehaviorMax(Number(b.behavior_max ?? 4))
         setTriggers(Array.isArray(b.triggers) ? b.triggers : [])
         setRegulators(Array.isArray(b.regulators) ? b.regulators : [])
@@ -146,7 +144,7 @@ export default function EditarPerfilPage() {
           communication_style: communicationStyle,
         },
         behavior: {
-          behavior_min: behaviorMin,
+          behavior_min: 0,
           behavior_max: behaviorMax,
           triggers,
           regulators,
@@ -256,15 +254,12 @@ export default function EditarPerfilPage() {
             <CardDescription>Rango de severidad permitido y reacciones del perfil.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Mínimo · {behaviorMin}</Label>
-                <Slider value={[behaviorMin]} min={1} max={5} step={1} onValueChange={(v) => setBehaviorMin(v[0])} />
-              </div>
-              <div className="space-y-2">
-                <Label>Máximo · {behaviorMax}</Label>
-                <Slider value={[behaviorMax]} min={1} max={5} step={1} onValueChange={(v) => setBehaviorMax(v[0])} />
-              </div>
+            <div className="space-y-2">
+              <Label>Severidad máxima del paciente · {behaviorMax}</Label>
+              <p className="mb-3 text-xs text-muted-foreground">
+                El paciente siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
+              </p>
+              <Slider value={[behaviorMax]} min={1} max={5} step={1} onValueChange={(v) => setBehaviorMax(v[0])} />
             </div>
 
             <div>
@@ -367,7 +362,7 @@ export default function EditarPerfilPage() {
                 ))}
               </div>
               <p className="text-xs">
-                Rango permitido: <strong>{behaviorMin}–{behaviorMax}</strong> · Disparadores {triggers.length} · Reguladores {regulators.length}
+                Máximo permitido: <strong>{behaviorMax}</strong> · Disparadores {triggers.length} · Reguladores {regulators.length}
               </p>
             </div>
           </CardContent>

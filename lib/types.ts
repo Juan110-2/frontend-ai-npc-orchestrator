@@ -15,7 +15,7 @@ export type InterventionCategory =
 
 export type ClosureCriteria = 'improvement' | 'deterioration' | 'risk';
 
-export type SessionStatus = 'active' | 'paused' | 'completed' | 'terminated';
+export type SessionStatus = 'active' | 'completed' | 'terminated';
 
 // ===========================
 // PROTOPERSONA

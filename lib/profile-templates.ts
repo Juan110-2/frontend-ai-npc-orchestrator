@@ -68,7 +68,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['insomnio', 'aislamiento reciente'],
     },
     behavior: {
-      behaviorMin: 1,
+      behaviorMin: 0,
       behaviorMax: 4,
       triggers: [
         { name: 'Mención a notas', description: 'Cualquier referencia al rendimiento académico la pone tensa.' },
@@ -104,7 +104,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['aislamiento social', 'llanto frecuente'],
     },
     behavior: {
-      behaviorMin: 2,
+      behaviorMin: 0,
       behaviorMax: 5,
       triggers: [
         { name: 'Hablar del futuro', description: 'No tolera pensar en planes a largo plazo todavía.' },
@@ -140,7 +140,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['ideación pasiva', 'desesperanza', 'aislamiento'],
     },
     behavior: {
-      behaviorMin: 3,
+      behaviorMin: 0,
       behaviorMax: 5,
       triggers: [
         { name: 'Frases de “anímate”', description: 'Las minimizaciones la hacen sentir invisible.' },
@@ -176,7 +176,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['estrés familiar', 'autoexigencia'],
     },
     behavior: {
-      behaviorMin: 2,
+      behaviorMin: 0,
       behaviorMax: 4,
       triggers: [
         { name: 'Comparaciones con otros', description: 'Las comparaciones lo activan a la defensiva.' },
@@ -212,7 +212,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['fatiga crónica', 'autoexigencia'],
     },
     behavior: {
-      behaviorMin: 1,
+      behaviorMin: 0,
       behaviorMax: 4,
       triggers: [
         { name: 'Hablar de descanso', description: 'Cualquier sugerencia de “tomar vacaciones” la frustra.' },
@@ -247,7 +247,7 @@ export const PROFILE_TEMPLATES: ProfileTemplate[] = [
       riskFlags: ['aislamiento', 'desarraigo'],
     },
     behavior: {
-      behaviorMin: 1,
+      behaviorMin: 0,
       behaviorMax: 3,
       triggers: [
         { name: 'Hablar de su país', description: 'A veces lo entristece, a veces lo conecta.' },

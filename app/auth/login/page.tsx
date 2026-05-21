@@ -20,18 +20,13 @@ const GoogleIcon = () => (
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, loginWithGoogle, sendMagicLink } = useAuth()
+  const { loginWithGoogle, sendMagicLink } = useAuth()
 
   const [email, setEmail] = useState('')
   const [magicSent, setMagicSent] = useState(false)
 
-  // Estado para el panel de credenciales (colapsable)
-  const [showCredentials, setShowCredentials] = useState(false)
-  const [password, setPassword] = useState('')
-
   const [loadingMagic, setLoadingMagic] = useState(false)
   const [loadingGoogle, setLoadingGoogle] = useState(false)
-  const [loadingCredentials, setLoadingCredentials] = useState(false)
 
   const [nextPath, setNextPath] = useState('/')
 
@@ -63,20 +58,6 @@ export default function LoginPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error con Google')
       setLoadingGoogle(false)
-    }
-  }
-
-  const handleCredentials = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      setLoadingCredentials(true)
-      await login(email, password)
-      toast.success('Sesión iniciada')
-      router.push(nextPath)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Correo o contraseña incorrectos')
-    } finally {
-      setLoadingCredentials(false)
     }
   }
 
@@ -161,38 +142,11 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => setShowCredentials((v) => !v)}
+                onClick={() => router.push(`/auth/credenciales${nextPath !== '/' ? `?next=${encodeURIComponent(nextPath)}` : ''}`)}
               >
                 <LogIn className="mr-2 h-4 w-4" />
                 Iniciar sesión con credenciales
               </Button>
-
-              {/* Panel credenciales colapsable */}
-              {showCredentials && (
-                <form onSubmit={handleCredentials} className="space-y-3 pt-1">
-                  <div>
-                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                      Contraseña
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Contraseña"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={loadingCredentials}
-                    className="w-full"
-                  >
-                    {loadingCredentials ? 'Ingresando...' : 'Ingresar'}
-                  </Button>
-                </form>
-              )}
 
               {/* Google */}
               <Button

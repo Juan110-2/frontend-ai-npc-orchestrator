@@ -173,7 +173,15 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricBox label="Turnos del estudiante" value={metrics.turns_trainee ?? "—"} icon={<MessageSquare className="h-4 w-4" />} />
             <MetricBox label="Turnos del paciente" value={metrics.turns_patient ?? "—"} icon={<MessageSquare className="h-4 w-4" />} />
-            <MetricBox label="Duración" value={metrics.duration_minutes != null ? `${metrics.duration_minutes.toFixed(1)} min` : "—"} icon={<Clock className="h-4 w-4" />} />
+            <MetricBox
+              label="Duración"
+              value={
+                metrics.duration_minutes != null
+                  ? `${metrics.duration_source === "estimated" ? "~" : ""}${(metrics.duration_minutes as number).toFixed(1)} min`
+                  : "—"
+              }
+              icon={<Clock className="h-4 w-4" />}
+            />
             <MetricBox label="Pico de severidad" value={metrics.severity_peak != null ? Number(metrics.severity_peak).toFixed(1) : "—"} />
             <MetricBox label="Severidad final" value={metrics.severity_final != null ? Number(metrics.severity_final).toFixed(1) : "—"} />
             <MetricBox label="Alertas de riesgo" value={metrics.risk_alerts_detected ?? 0} icon={<AlertTriangle className="h-4 w-4 text-destructive" />} />

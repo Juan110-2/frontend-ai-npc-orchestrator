@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, Search, Play, Pause, Square, MoreHorizontal, Eye, MessageSquare,
+  Plus, Search, Play, Square, MoreHorizontal, Eye, MessageSquare,
   ClipboardCheck, Clock, Download, Loader2, CheckCircle2, PlayCircle,
   UserCheck, UsersRound, Check,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -27,13 +27,14 @@ import { SeverityGauge, SeverityRange } from '@/components/severity-gauge';
 import type { Sesion, SessionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
-  listProfiles, listScenarios, listSessions, getSessionModelInfo,
+  listProfiles, listScenarios, listSessions, listEvaluations,
   exportConversationMarkdown, startSession, listStudents,
   type BackendProfile, type BackendScenario, type BackendSession, type BackendUserProfile,
+  type EvaluationListItem, type TimeSource,
 } from '@/lib/backend-api';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
-import { Paginator, paginate } from '@/components/paginator';
+import { Paginator, PAGE_SIZE } from '@/components/paginator';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', {
@@ -41,18 +42,24 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-function formatDuration(seconds: number) {
+function formatDurationSecs(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
 }
 
+function formatDuration(seconds: number, source: TimeSource): string {
+  if (source === 'unavailable') return '—';
+  if (source === 'none') return '—';
+  if (source === 'estimated') return `~${formatDurationSecs(seconds)}`;
+  return formatDurationSecs(seconds);
+}
+
 const statusConfig: Record<SessionStatus, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: typeof Play }> = {
-  active:     { label: 'Activa',      variant: 'default',     icon: Play },
-  paused:     { label: 'Pausada',     variant: 'secondary',   icon: Pause },
-  completed:  { label: 'Completada',  variant: 'outline',     icon: Square },
-  terminated: { label: 'Terminada',   variant: 'destructive', icon: Square },
+  active: { label: 'Activa', variant: 'default', icon: Play },
+  completed: { label: 'Completada', variant: 'outline', icon: Square },
+  terminated: { label: 'Terminada', variant: 'destructive', icon: Square },
 };
 
 // ─── Dialog nueva sesión ─────────────────────────────────────────────────────
@@ -204,240 +211,240 @@ function NuevaSesionDialog({
           </>
         ) : (
           <>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Perfil */}
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Perfil</p>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar perfil..."
-                value={profileSearch}
-                onChange={e => setProfileSearch(e.target.value)}
-                className="h-8 pl-8 text-sm"
-              />
-            </div>
-            <ScrollArea className="h-56 rounded-md border">
-              <div className="space-y-0.5 p-1">
-                {filteredProfiles.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-muted-foreground">Sin resultados</p>
-                ) : filteredProfiles.map(p => {
-                  const traits = (p.traits ?? {}) as Record<string, unknown>;
-                  const age = traits.age as number | undefined;
-                  const behavior = (p.behavior ?? {}) as Record<string, unknown>;
-                  const bMin = behavior.behavior_min as number | undefined;
-                  const bMax = behavior.behavior_max as number | undefined;
-                  const personality = (traits.personality as string[]) ?? [];
-                  const commStyle = (traits.communication_style as string[]) ?? [];
-                  const isSelected = selectedProfile?.id === p.id;
-
-                  const MAX_TAGS = 3;
-                  const persShown = personality.slice(0, MAX_TAGS);
-                  const persExtra = personality.length - persShown.length;
-                  const commShown = commStyle.slice(0, MAX_TAGS);
-                  const commExtra = commStyle.length - commShown.length;
-
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedProfile(isSelected ? null : p)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
-                        isSelected && 'border-primary/40 bg-primary/5'
-                      )}
-                    >
-                      <div className={cn(
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                      )}>
-                        {initials(p.name) || '·'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {age ? `${age} años` : 'Edad sin definir'}
-                        </p>
-                        {persShown.length > 0 && (
-                          <div className="mt-0.5 flex items-center gap-1">
-                            <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
-                              {persShown.map(t => (
-                                <span key={t} className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
-                              ))}
-                            </div>
-                            {persExtra > 0 && (
-                              <span className="shrink-0 rounded border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">+{persExtra}</span>
-                            )}
-                          </div>
-                        )}
-                        {commShown.length > 0 && (
-                          <div className="mt-0.5 flex items-center gap-1">
-                            <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
-                              {commShown.map(t => (
-                                <span key={t} className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-700 dark:text-sky-400">{t}</span>
-                              ))}
-                            </div>
-                            {commExtra > 0 && (
-                              <span className="shrink-0 rounded border border-sky-400/40 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-400">+{commExtra}</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end justify-center gap-1">
-                        {bMin != null && bMax != null && (
-                          <SeverityRange min={bMin} max={bMax} size="sm" showLabel />
-                        )}
-                      </div>
-                      {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Escenario */}
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Escenario</p>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar escenario..."
-                value={scenarioSearch}
-                onChange={e => setScenarioSearch(e.target.value)}
-                className="h-8 pl-8 text-sm"
-              />
-            </div>
-            <ScrollArea className="h-56 rounded-md border">
-              <div className="space-y-0.5 p-1">
-                {filteredScenarios.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-muted-foreground">Sin resultados</p>
-                ) : filteredScenarios.map(s => {
-                  const isSelected = selectedScenario?.id === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedScenario(isSelected ? null : s)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
-                        isSelected && 'border-primary/40 bg-primary/5'
-                      )}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold leading-snug">{s.name}</p>
-                        {s.context && (
-                          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.context}</p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end justify-center gap-0.5">
-                        <span className="text-[10px] text-muted-foreground/60">Sev · {s.severity}</span>
-                        <SeverityGauge level={s.severity} size="sm" />
-                      </div>
-                      {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-        </div>
-
-        {/* Asignación */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium">¿Para quién es esta sesión?</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setAssignMode('self')}
-              className={cn(
-                'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
-                assignMode === 'self' ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/40'
-              )}
-            >
-              <UserCheck className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Probar yo mismo</p>
-              <p className="text-xs text-muted-foreground">Crea la sesión para tu propio uso.</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAssignMode('students')}
-              className={cn(
-                'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
-                assignMode === 'students' ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/40'
-              )}
-            >
-              <UsersRound className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Asignar a estudiantes</p>
-              <p className="text-xs text-muted-foreground">Se crea una sesión por cada estudiante.</p>
-            </button>
-          </div>
-
-          {assignMode === 'students' && (
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nombre o correo..."
-                  value={studentQuery}
-                  onChange={e => setStudentQuery(e.target.value)}
-                  className="h-8 pl-8 text-sm"
-                />
-              </div>
-              <ScrollArea className="h-44 rounded-md border">
-                <div className="divide-y">
-                  {studentsLoading ? (
-                    <div className="flex items-center justify-center gap-2 p-4 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Cargando estudiantes...</span>
-                    </div>
-                  ) : filteredStudents.length === 0 ? (
-                    <p className="p-3 text-sm text-muted-foreground">No se encontraron estudiantes.</p>
-                  ) : filteredStudents.map(s => {
-                    const selected = selectedStudentIds.includes(s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => toggleStudent(s.id)}
-                        className={cn(
-                          'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40',
-                          selected && 'bg-primary/5'
-                        )}
-                      >
-                        <div className={cn(
-                          'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-                          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input'
-                        )}>
-                          {selected && <Check className="h-3 w-3" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{s.full_name ?? '—'}</p>
-                          <p className="truncate text-xs text-muted-foreground">{s.email}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Perfil */}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">Perfil</p>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar perfil..."
+                    value={profileSearch}
+                    onChange={e => setProfileSearch(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
                 </div>
-              </ScrollArea>
-              {selectedStudentIds.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedStudentIds.length} estudiante(s) seleccionado(s)
-                </p>
+                <ScrollArea className="h-56 rounded-md border">
+                  <div className="space-y-0.5 p-1">
+                    {filteredProfiles.length === 0 ? (
+                      <p className="py-8 text-center text-xs text-muted-foreground">Sin resultados</p>
+                    ) : filteredProfiles.map(p => {
+                      const traits = (p.traits ?? {}) as Record<string, unknown>;
+                      const age = traits.age as number | undefined;
+                      const behavior = (p.behavior ?? {}) as Record<string, unknown>;
+                      const bMin = behavior.behavior_min as number | undefined;
+                      const bMax = behavior.behavior_max as number | undefined;
+                      const personality = (traits.personality as string[]) ?? [];
+                      const commStyle = (traits.communication_style as string[]) ?? [];
+                      const isSelected = selectedProfile?.id === p.id;
+
+                      const MAX_TAGS = 3;
+                      const persShown = personality.slice(0, MAX_TAGS);
+                      const persExtra = personality.length - persShown.length;
+                      const commShown = commStyle.slice(0, MAX_TAGS);
+                      const commExtra = commStyle.length - commShown.length;
+
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedProfile(isSelected ? null : p)}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
+                            isSelected && 'border-primary/40 bg-primary/5'
+                          )}
+                        >
+                          <div className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                            isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          )}>
+                            {initials(p.name) || '·'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {age ? `${age} años` : 'Edad sin definir'}
+                            </p>
+                            {persShown.length > 0 && (
+                              <div className="mt-0.5 flex items-center gap-1">
+                                <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                                  {persShown.map(t => (
+                                    <span key={t} className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                                  ))}
+                                </div>
+                                {persExtra > 0 && (
+                                  <span className="shrink-0 rounded border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">+{persExtra}</span>
+                                )}
+                              </div>
+                            )}
+                            {commShown.length > 0 && (
+                              <div className="mt-0.5 flex items-center gap-1">
+                                <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                                  {commShown.map(t => (
+                                    <span key={t} className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-700 dark:text-sky-400">{t}</span>
+                                  ))}
+                                </div>
+                                {commExtra > 0 && (
+                                  <span className="shrink-0 rounded border border-sky-400/40 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-400">+{commExtra}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end justify-center gap-1">
+                            {bMin != null && bMax != null && (
+                              <SeverityRange min={bMin} max={bMax} size="sm" showLabel />
+                            )}
+                          </div>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Escenario */}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">Escenario</p>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar escenario..."
+                    value={scenarioSearch}
+                    onChange={e => setScenarioSearch(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
+                </div>
+                <ScrollArea className="h-56 rounded-md border">
+                  <div className="space-y-0.5 p-1">
+                    {filteredScenarios.length === 0 ? (
+                      <p className="py-8 text-center text-xs text-muted-foreground">Sin resultados</p>
+                    ) : filteredScenarios.map(s => {
+                      const isSelected = selectedScenario?.id === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedScenario(isSelected ? null : s)}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted/40',
+                            isSelected && 'border-primary/40 bg-primary/5'
+                          )}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold leading-snug">{s.name}</p>
+                            {s.context && (
+                              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.context}</p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end justify-center gap-0.5">
+                            <span className="text-[10px] text-muted-foreground/60">Sev · {s.severity}</span>
+                            <SeverityGauge level={s.severity} size="sm" />
+                          </div>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+
+            {/* Asignación */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium">¿Para quién es esta sesión?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAssignMode('self')}
+                  className={cn(
+                    'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
+                    assignMode === 'self' ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/40'
+                  )}
+                >
+                  <UserCheck className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold">Probar yo mismo</p>
+                  <p className="text-xs text-muted-foreground">Crea la sesión para tu propio uso.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssignMode('students')}
+                  className={cn(
+                    'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
+                    assignMode === 'students' ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/40'
+                  )}
+                >
+                  <UsersRound className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold">Asignar a estudiantes</p>
+                  <p className="text-xs text-muted-foreground">Se crea una sesión por cada estudiante.</p>
+                </button>
+              </div>
+
+              {assignMode === 'students' && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre o correo..."
+                      value={studentQuery}
+                      onChange={e => setStudentQuery(e.target.value)}
+                      className="h-8 pl-8 text-sm"
+                    />
+                  </div>
+                  <ScrollArea className="h-44 rounded-md border">
+                    <div className="divide-y">
+                      {studentsLoading ? (
+                        <div className="flex items-center justify-center gap-2 p-4 text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Cargando estudiantes...</span>
+                        </div>
+                      ) : filteredStudents.length === 0 ? (
+                        <p className="p-3 text-sm text-muted-foreground">No se encontraron estudiantes.</p>
+                      ) : filteredStudents.map(s => {
+                        const selected = selectedStudentIds.includes(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => toggleStudent(s.id)}
+                            className={cn(
+                              'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40',
+                              selected && 'bg-primary/5'
+                            )}
+                          >
+                            <div className={cn(
+                              'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                              selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input'
+                            )}>
+                              {selected && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{s.full_name ?? '—'}</p>
+                              <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                  {selectedStudentIds.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedStudentIds.length} estudiante(s) seleccionado(s)
+                    </p>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button disabled={!canCreate || creating} onClick={handleCreate}>
-            {creating
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <PlayCircle className="mr-2 h-4 w-4" />}
-            {assignMode === 'students'
-              ? `Asignar a ${selectedStudentIds.length || ''} estudiante(s)`
-              : 'Iniciar sesión'}
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button disabled={!canCreate || creating} onClick={handleCreate}>
+                {creating
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <PlayCircle className="mr-2 h-4 w-4" />}
+                {assignMode === 'students'
+                  ? `Asignar a ${selectedStudentIds.length || ''} estudiante(s)`
+                  : 'Iniciar sesión'}
+              </Button>
+            </DialogFooter>
           </>
         )}
       </DialogContent>
@@ -461,16 +468,14 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
           <div className="flex items-center gap-3">
             <div className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg',
-              sesion.status === 'active'     && 'bg-success/10',
-              sesion.status === 'paused'     && 'bg-warning/10',
-              sesion.status === 'completed'  && 'bg-muted',
+              sesion.status === 'active' && 'bg-success/10',
+              sesion.status === 'completed' && 'bg-muted',
               sesion.status === 'terminated' && 'bg-destructive/10'
             )}>
               <StatusIcon className={cn(
                 'h-5 w-5',
-                sesion.status === 'active'     && 'text-success',
-                sesion.status === 'paused'     && 'text-warning',
-                sesion.status === 'completed'  && 'text-muted-foreground',
+                sesion.status === 'active' && 'text-success',
+                sesion.status === 'completed' && 'text-muted-foreground',
                 sesion.status === 'terminated' && 'text-destructive'
               )} />
             </div>
@@ -505,12 +510,7 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
                   <MessageSquare className="mr-2 h-4 w-4" /> Continuar chat
                 </DropdownMenuItem>
               )}
-              {sesion.status === 'paused' && (
-                <DropdownMenuItem onClick={() => router.push(`/chat?sesion=${sesion.id}`)}>
-                  <Play className="mr-2 h-4 w-4" /> Reanudar sesión
-                </DropdownMenuItem>
-              )}
-              {sesion.status === 'completed' && (
+              {(sesion.status === 'completed' || sesion.status === 'terminated') && (
                 <DropdownMenuItem onClick={() => router.push(`/evaluacion?sesion=${sesion.id}`)}>
                   <ClipboardCheck className="mr-2 h-4 w-4" /> Evaluar
                 </DropdownMenuItem>
@@ -542,7 +542,7 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
             <SeverityGauge level={sesion.state.currentSeverity} size="sm" showValue />
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {formatDuration(sesion.state.totalDuration)}
+              {formatDuration(sesion.state.totalDuration, sesion.timeSource)}
             </div>
           </div>
           <Badge variant={config.variant}>{config.label}</Badge>
@@ -589,138 +589,187 @@ type SesionWithOwner = Sesion & {
   userId: string | null
   assignedBy: string | null
   assignedToName: string | null
+  timeSource: TimeSource
+}
+
+function mapSession(
+  session: BackendSession,
+  profileMap: Map<string, BackendProfile>,
+  scenarioMap: Map<string, BackendScenario>,
+  studentMap: Map<string, BackendUserProfile>,
+  evalMap: Map<string, EvaluationListItem>,
+): SesionWithOwner {
+  const profile = profileMap.get(session.profile_id);
+  const scenario = scenarioMap.get(session.scenario_id);
+  const startedAt = new Date(session.started_at);
+  const endedAt = session.ended_at ? new Date(session.ended_at) : undefined;
+  const metrics = evalMap.get(session.id)?.automatic_metrics;
+  const riskCount = metrics?.risk_alerts_detected ?? 0;
+  return {
+    id: session.id,
+    perfilId: session.profile_id,
+    perfilName: profile?.name || 'Perfil no encontrado',
+    escenarioId: session.scenario_id,
+    escenarioName: scenario?.name || 'Escenario no encontrado',
+    status: session.status,
+    modelName: metrics?.last_ai_model ?? undefined,
+    state: {
+      currentSeverity: Math.max(0, Math.min(5, session.current_severity)),
+      activeRiskFlags: Array(riskCount).fill('risk'),
+      turnCount: metrics?.turns_trainee ?? 0,
+      totalDuration: session.accumulated_seconds ?? 0,
+      coherenceScore: 100,
+      interventionHistory: [],
+    },
+    messages: [],
+    startedAt,
+    endedAt,
+    userId: session.user_id,
+    assignedBy: session.assigned_by,
+    assignedToName: session.user_id
+      ? (studentMap.get(session.user_id)?.full_name ?? studentMap.get(session.user_id)?.email ?? null)
+      : null,
+    timeSource: session.time_source,
+  };
 }
 
 export default function SesionesPage() {
-  const { user } = useAuth();
-  const [sesiones, setSesiones] = useState<SesionWithOwner[]>([]);
+  const { userRole } = useAuth();
+
+  // ── datos de referencia (cargados una vez) ─────────────────────────────────
   const [availableProfiles, setAvailableProfiles] = useState<BackendProfile[]>([]);
   const [availableScenarios, setAvailableScenarios] = useState<BackendScenario[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [profileMap, setProfileMap] = useState<Map<string, BackendProfile>>(new Map());
+  const [scenarioMap, setScenarioMap] = useState<Map<string, BackendScenario>>(new Map());
+  const [studentMap, setStudentMap] = useState<Map<string, BackendUserProfile>>(new Map());
+  const [refLoaded, setRefLoaded] = useState(false);
+
+  // ── sección "mis sesiones" ─────────────────────────────────────────────────
+  const [mySessions, setMySessions] = useState<SesionWithOwner[]>([]);
+  const [myTotal, setMyTotal] = useState(0);
+  const [myIsLoading, setMyIsLoading] = useState(true);
+
+  // ── sección "asignadas por mí" ─────────────────────────────────────────────
+  const [assignedSessions, setAssignedSessions] = useState<SesionWithOwner[]>([]);
+  const [assignedTotal, setAssignedTotal] = useState(0);
+  const [assignedIsLoading, setAssignedIsLoading] = useState(false);
 
   const [activeSection, setActiveSection] = useState<'mine' | 'assigned'>('mine');
 
   const [mySearch, setMySearch] = useState('');
   const [myTab, setMyTab] = useState('all');
   const [myPage, setMyPage] = useState(1);
+  const [myRefreshKey, setMyRefreshKey] = useState(0);
 
   const [assignedSearch, setAssignedSearch] = useState('');
   const [assignedTab, setAssignedTab] = useState('all');
   const [assignedPage, setAssignedPage] = useState(1);
+  const [assignedRefreshKey, setAssignedRefreshKey] = useState(0);
 
-  const loadSessions = async () => {
+  // ── carga de referencia ────────────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      listProfiles(),
+      listScenarios(),
+      listStudents().catch(() => [] as BackendUserProfile[]),
+    ]).then(([profiles, scenarios, students]) => {
+      setAvailableProfiles(profiles);
+      setAvailableScenarios(scenarios);
+      setProfileMap(new Map(profiles.map(p => [p.id, p])));
+      setScenarioMap(new Map(scenarios.map(s => [s.id, s])));
+      setStudentMap(new Map(students.map(u => [u.id, u])));
+      setRefLoaded(true);
+    }).catch(() => toast.error('Error cargando datos de referencia.'));
+  }, []);
+
+  // ── carga paginada ─────────────────────────────────────────────────────────
+  const loadMySessions = async (
+    page: number,
+    tab: string,
+    pMap: Map<string, BackendProfile>,
+    sMap: Map<string, BackendScenario>,
+    stMap: Map<string, BackendUserProfile>,
+  ) => {
+    setMyIsLoading(true);
     try {
-      setIsLoading(true);
-      const [sessionsData, profilesData, scenariosData, studentsData] = await Promise.all([
-        listSessions(),
-        listProfiles(),
-        listScenarios(),
-        listStudents().catch(() => [] as BackendUserProfile[]),
-      ]);
-
-      setAvailableProfiles(profilesData);
-      setAvailableScenarios(scenariosData);
-
-      const profileMap = new Map(profilesData.map(p => [p.id, p]));
-      const scenarioMap = new Map(scenariosData.map(s => [s.id, s]));
-      const studentMap = new Map(studentsData.map(u => [u.id, u]));
-      const now = Date.now();
-
-      const mappedSessions: SesionWithOwner[] = sessionsData.map((session) => {
-        const profile = profileMap.get(session.profile_id);
-        const scenario = scenarioMap.get(session.scenario_id);
-        const startedAt = new Date(session.started_at);
-        const endedAt = session.ended_at ? new Date(session.ended_at) : undefined;
-        return {
-          id: session.id,
-          perfilId: session.profile_id,
-          perfilName: profile?.name || 'Perfil no encontrado',
-          escenarioId: session.scenario_id,
-          escenarioName: scenario?.name || 'Escenario no encontrado',
-          status: session.ended_at ? 'completed' : 'active',
-          state: {
-            currentSeverity: Math.max(0, Math.min(5, session.current_severity)),
-            activeRiskFlags: [],
-            turnCount: 0,
-            totalDuration: Math.max(0, Math.floor(((endedAt?.getTime() || now) - startedAt.getTime()) / 1000)),
-            coherenceScore: 100,
-            interventionHistory: [],
-          },
-          messages: [],
-          startedAt,
-          endedAt,
-          userId: session.user_id,
-          assignedBy: session.assigned_by,
-          assignedToName: session.user_id
-            ? (studentMap.get(session.user_id)?.full_name ?? studentMap.get(session.user_id)?.email ?? null)
-            : null,
-        };
-      });
-
-      const enriched = await Promise.all(
-        mappedSessions.map(async (m) => {
-          const info = await getSessionModelInfo(m.id);
-          return { ...m, modelName: info.model ?? undefined };
-        })
-      );
-      setSesiones(enriched);
+      const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
+      const { items, total } = await listSessions({ view: 'mine', page, limit: PAGE_SIZE, status });
+      const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      const evalMap = new Map(evals.map(e => [e.session_id, e]));
+      setMySessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
+      setMyTotal(total);
     } catch {
-      toast.error('No se pudieron cargar las sesiones desde el backend.');
+      toast.error('No se pudieron cargar las sesiones.');
     } finally {
-      setIsLoading(false);
+      setMyIsLoading(false);
     }
   };
 
-  useEffect(() => { void loadSessions(); }, []);
-  useEffect(() => { setMyPage(1); }, [mySearch, myTab]);
-  useEffect(() => { setAssignedPage(1); }, [assignedSearch, assignedTab]);
-
-  const currentUserId = user?.id ?? null;
-  const rawMySessions   = sesiones.filter(s => !s.userId || s.userId === currentUserId);
-  const rawAssignedByMe = sesiones.filter(s => !!s.userId && s.userId !== currentUserId);
-
-  const filteredMySessions = rawMySessions.filter(s => {
-    const q = mySearch.toLowerCase();
-    return (!mySearch.trim() || s.perfilName.toLowerCase().includes(q) || s.escenarioName.toLowerCase().includes(q))
-      && (myTab === 'all' || s.status === myTab);
-  });
-
-  const filteredAssignedByMe = rawAssignedByMe.filter(s => {
-    const q = assignedSearch.toLowerCase();
-    return (!assignedSearch.trim() || s.perfilName.toLowerCase().includes(q) || s.escenarioName.toLowerCase().includes(q))
-      && (assignedTab === 'all' || s.status === assignedTab);
-  });
-
-  const myCounts = {
-    all:       rawMySessions.length,
-    active:    rawMySessions.filter(s => s.status === 'active').length,
-    paused:    rawMySessions.filter(s => s.status === 'paused').length,
-    completed: rawMySessions.filter(s => s.status === 'completed').length,
+  const loadAssignedSessions = async (
+    page: number,
+    tab: string,
+    pMap: Map<string, BackendProfile>,
+    sMap: Map<string, BackendScenario>,
+    stMap: Map<string, BackendUserProfile>,
+  ) => {
+    setAssignedIsLoading(true);
+    try {
+      const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
+      const { items, total } = await listSessions({ view: 'assigned', page, limit: PAGE_SIZE, status });
+      const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      const evalMap = new Map(evals.map(e => [e.session_id, e]));
+      setAssignedSessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
+      setAssignedTotal(total);
+    } catch {
+      toast.error('No se pudieron cargar las sesiones asignadas.');
+    } finally {
+      setAssignedIsLoading(false);
+    }
   };
 
-  const assignedCounts = {
-    all:       rawAssignedByMe.length,
-    active:    rawAssignedByMe.filter(s => s.status === 'active').length,
-    paused:    rawAssignedByMe.filter(s => s.status === 'paused').length,
-    completed: rawAssignedByMe.filter(s => s.status === 'completed').length,
-  };
+  // ── efectos ────────────────────────────────────────────────────────────────
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const counts = {
-    all:       sesiones.length,
-    active:    sesiones.filter(s => s.status === 'active').length,
-    paused:    sesiones.filter(s => s.status === 'paused').length,
-    completed: sesiones.filter(s => s.status === 'completed').length,
+  useEffect(() => {
+    if (!refLoaded) return;
+    void loadMySessions(myPage, myTab, profileMap, scenarioMap, studentMap);
+  }, [refLoaded, myPage, myTab, reloadKey, profileMap, scenarioMap, studentMap]);
+
+  useEffect(() => {
+    if (!refLoaded || activeSection !== 'assigned') return;
+    void loadAssignedSessions(assignedPage, assignedTab, profileMap, scenarioMap, studentMap);
+  }, [refLoaded, activeSection, assignedPage, assignedTab, reloadKey, profileMap, scenarioMap, studentMap]);
+
+  useEffect(() => {
+    setMyPage(1);
+  }, [myTab]);
+
+  useEffect(() => {
+    setAssignedPage(1);
+  }, [assignedTab]);
+
+  const refreshAll = () => {
+    setReloadKey(k => k + 1);
   };
 
   const isMine = activeSection === 'mine';
-  const currentSearch    = isMine ? mySearch    : assignedSearch;
+  const currentSearch = isMine ? mySearch : assignedSearch;
   const setCurrentSearch = isMine ? setMySearch : setAssignedSearch;
-  const currentTab       = isMine ? myTab       : assignedTab;
-  const setCurrentTab    = isMine ? setMyTab    : setAssignedTab;
-  const currentPage      = isMine ? myPage      : assignedPage;
-  const setCurrentPage   = isMine ? setMyPage   : setAssignedPage;
-  const currentCounts    = isMine ? myCounts    : assignedCounts;
-  const filteredSessions = isMine ? filteredMySessions : filteredAssignedByMe;
+  const currentTab = isMine ? myTab : assignedTab;
+  const setCurrentTab = isMine ? setMyTab : setAssignedTab;
+  const currentPage = isMine ? myPage : assignedPage;
+  const setCurrentPage = isMine ? setMyPage : setAssignedPage;
+  const currentTotal = isMine ? myTotal : assignedTotal;
+  const currentSessions = isMine ? mySessions : assignedSessions;
+  const currentIsLoading = isMine ? myIsLoading : assignedIsLoading;
+  const isTeacherOrAdmin = userRole === 'teacher' || userRole === 'admin';
+
+  const filteredSessions = currentSessions.filter(s => {
+    const q = currentSearch.toLowerCase();
+    return !currentSearch.trim() ||
+      s.perfilName.toLowerCase().includes(q) ||
+      s.escenarioName.toLowerCase().includes(q);
+  });
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -728,56 +777,17 @@ export default function SesionesPage() {
         title="Sesiones"
         description="Historial de sesiones de simulación y chats activos"
       >
-        <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={loadSessions} />
+        <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
       </PageHeader>
 
       {/* Stats */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
+      <div className={`mb-6 grid gap-4 ${isTeacherOrAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-semibold">{counts.active}</p>
-                <p className="text-xs text-muted-foreground">Activas</p>
-              </div>
-              <div className="rounded-lg bg-success/10 p-2">
-                <Play className="h-4 w-4 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-semibold">{counts.paused}</p>
-                <p className="text-xs text-muted-foreground">Pausadas</p>
-              </div>
-              <div className="rounded-lg bg-warning/10 p-2">
-                <Pause className="h-4 w-4 text-warning" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-semibold">{counts.completed}</p>
-                <p className="text-xs text-muted-foreground">Completadas</p>
-              </div>
-              <div className="rounded-lg bg-muted p-2">
-                <Square className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-semibold">{counts.all}</p>
-                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-semibold">{myTotal}</p>
+                <p className="text-xs text-muted-foreground">Mis sesiones</p>
               </div>
               <div className="rounded-lg bg-primary/10 p-2">
                 <MessageSquare className="h-4 w-4 text-primary" />
@@ -785,22 +795,50 @@ export default function SesionesPage() {
             </div>
           </CardContent>
         </Card>
+        {isTeacherOrAdmin && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-semibold">{assignedTotal}</p>
+                  <p className="text-xs text-muted-foreground">Asignadas</p>
+                </div>
+                <div className="rounded-lg bg-success/10 p-2">
+                  <UserCheck className="h-4 w-4 text-success" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-semibold">{myTotal + assignedTotal}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+              <div className="rounded-lg bg-muted p-2">
+                <Square className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Tabs primarios de sección */}
-      <div className="mb-5 flex border-b">
-        <button
-          onClick={() => setActiveSection('mine')}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-            isMine
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Mis sesiones ({rawMySessions.length})
-        </button>
-        {rawAssignedByMe.length > 0 && (
+      {isTeacherOrAdmin && (
+        <div className="mb-5 flex border-b">
+          <button
+            onClick={() => setActiveSection('mine')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              isMine
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Mis sesiones ({myTotal})
+          </button>
           <button
             onClick={() => setActiveSection('assigned')}
             className={cn(
@@ -810,25 +848,25 @@ export default function SesionesPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            Asignadas por mí ({rawAssignedByMe.length})
+            Asignadas por mí ({assignedTotal})
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Sub-tabs + búsqueda */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full sm:w-auto">
           <TabsList className="w-full overflow-x-auto whitespace-nowrap sm:w-auto">
-            <TabsTrigger value="all">Todas ({currentCounts.all})</TabsTrigger>
-            <TabsTrigger value="active">Activas ({currentCounts.active})</TabsTrigger>
-            <TabsTrigger value="paused">Pausadas ({currentCounts.paused})</TabsTrigger>
-            <TabsTrigger value="completed">Completadas ({currentCounts.completed})</TabsTrigger>
+            <TabsTrigger value="all">Todas</TabsTrigger>
+            <TabsTrigger value="active">Activas</TabsTrigger>
+            <TabsTrigger value="completed">Completadas</TabsTrigger>
+            <TabsTrigger value="terminated">Terminadas</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="relative flex-1 sm:w-64 sm:flex-none">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar sesiones..."
+            placeholder="Buscar en esta página..."
             value={currentSearch}
             onChange={(e) => setCurrentSearch(e.target.value)}
             className="pl-9"
@@ -837,9 +875,9 @@ export default function SesionesPage() {
       </div>
 
       {/* Grid */}
-      {isLoading ? (
+      {currentIsLoading ? (
         <Card><CardContent><LoadingState message="Cargando sesiones..." className="py-8" /></CardContent></Card>
-      ) : sesiones.length === 0 ? (
+      ) : currentTotal === 0 && !currentSearch ? (
         <Card>
           <CardContent className="p-8 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -848,24 +886,26 @@ export default function SesionesPage() {
             <p className="font-medium">No hay sesiones</p>
             <p className="mt-1 text-sm text-muted-foreground">Inicia una nueva sesión para comenzar a simular.</p>
             <div className="mt-4">
-              <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={loadSessions} />
+              <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
             </div>
           </CardContent>
         </Card>
       ) : filteredSessions.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            {currentSearch ? 'Sin resultados para tu búsqueda.' : 'No hay sesiones en esta categoría.'}
+            {currentSearch ? 'Sin resultados para tu búsqueda en esta página.' : 'No hay sesiones en esta categoría.'}
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {paginate(filteredSessions, currentPage).map((s) => (
+            {filteredSessions.map((s) => (
               <SesionCard key={s.id} sesion={s} />
             ))}
           </div>
-          <Paginator total={filteredSessions.length} page={currentPage} onPageChange={setCurrentPage} />
+          {!currentSearch && (
+            <Paginator total={currentTotal} page={currentPage} onPageChange={setCurrentPage} />
+          )}
         </>
       )}
     </div>

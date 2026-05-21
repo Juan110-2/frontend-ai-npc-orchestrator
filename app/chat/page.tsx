@@ -1,10 +1,12 @@
 "use client"
 
-import { Suspense, useState, useRef, useEffect } from "react"
+import { Suspense, useState, useRef, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,18 +25,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { SeverityBadge } from "@/components/severity-badge"
 import { SeverityGauge } from "@/components/severity-gauge"
-import { 
-  Send, 
-  Clock, 
-  User, 
-  Bot, 
+import {
+  Send,
+  Clock,
+  User,
+  Bot,
   AlertTriangle,
   FileText,
-  ChevronRight,
-  PlayCircle,
-  PauseCircle,
   StopCircle,
   PanelRightClose,
   Eye,
@@ -45,11 +43,11 @@ import { PageLoader } from "@/components/ui-states"
 import type { Sesion } from "@/lib/types"
 import {
   endSession,
+  patchSessionTime,
   getConversationHistory,
   getSession,
   listProfiles,
   listScenarios,
-  sendConversationMessage,
   connectConversationStream,
   startSession,
   type BackendProfile,
@@ -81,6 +79,9 @@ type DisplaySession = {
   endedAt?: string | null
 }
 
+type TimerCheckpoint = { total: number; ts: number }
+const cpKey = (sid: string) => `timer_cp_${sid}`
+
 const QUICK_STARTERS = [
   "Quiero entender mejor cómo te has sentido hoy.",
   "Gracias por compartir esto conmigo.",
@@ -88,34 +89,31 @@ const QUICK_STARTERS = [
 ]
 
 function SessionContextPanel({
-  perfilName,
-  age,
-  protoName,
-  pedagogicalObjective,
-  behaviorMin,
-  behaviorMax,
-  triggerLabels,
-  escenarioName,
-  initialSeverity,
-  escenarioDescription,
-  situationContext,
-  riskItems,
-  restrictionItems,
+  profile,
+  scenario,
 }: {
-  perfilName: string
-  age?: number
-  protoName: string
-  pedagogicalObjective: string
-  behaviorMin: number
-  behaviorMax: number
-  triggerLabels: string[]
-  escenarioName: string
-  initialSeverity: number
-  escenarioDescription: string
-  situationContext: string
-  riskItems: string[]
-  restrictionItems: string[]
+  profile: BackendProfile | null
+  scenario: BackendScenario | null
 }) {
+  const traits = (profile?.traits ?? {}) as Record<string, unknown>
+  const behavior = (profile?.behavior ?? {}) as Record<string, unknown>
+
+  const age = typeof traits.age === 'number' ? traits.age : undefined
+  const occupation = typeof traits.occupation === 'string' && traits.occupation ? traits.occupation : undefined
+  const personality = Array.isArray(traits.personality) ? (traits.personality as string[]) : []
+  const commStyle = Array.isArray(traits.communication_style) ? (traits.communication_style as string[]) : []
+  const bMax = typeof behavior.behavior_max === 'number' ? behavior.behavior_max : 5
+  const triggers = Array.isArray(behavior.triggers)
+    ? (behavior.triggers as { name: string; description: string }[])
+    : []
+  const regulators = Array.isArray(behavior.regulators)
+    ? (behavior.regulators as { name: string; description: string }[])
+    : []
+
+  const escenarioDescription = typeof scenario?.constraints?.description === 'string'
+    ? scenario.constraints.description
+    : ''
+
   return (
     <Tabs defaultValue="perfil" className="h-full">
       <TabsList className="w-full justify-start gap-1 rounded-t-xl border-b bg-muted/30 p-1">
@@ -139,46 +137,83 @@ function SessionContextPanel({
         <ScrollArea className="h-full p-4">
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">{perfilName}</h3>
-              <p className="text-sm text-muted-foreground">{age ? `${age} años` : "Edad no especificada"}</p>
+              <h3 className="text-lg font-semibold">{profile?.name ?? 'Perfil'}</h3>
+              <p className="text-sm text-muted-foreground">
+                {age ? `${age} años` : 'Edad no especificada'}
+                {occupation ? ` · ${occupation}` : ''}
+              </p>
             </div>
 
             <Separator />
 
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Molde base</h4>
-                <p className="text-sm">{protoName}</p>
-              </div>
+            <div className="space-y-4">
+              {profile?.description && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Descripción</h4>
+                  <p className="mt-1 text-sm">{profile.description}</p>
+                </div>
+              )}
+
+              {personality.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Personalidad</h4>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {personality.map((p) => (
+                      <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {commStyle.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Estilo de comunicación</h4>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {commStyle.map((s) => (
+                      <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Objetivo de simulación</h4>
-                <p className="text-sm">{pedagogicalObjective}</p>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Rango de severidad</h4>
-                <div className="flex items-center gap-2">
-                  <SeverityBadge level={behaviorMin as 1 | 2 | 3 | 4 | 5} size="sm" />
-                  <span className="text-xs text-muted-foreground">a</span>
-                  <SeverityBadge level={behaviorMax as 1 | 2 | 3 | 4 | 5} size="sm" />
+                <h4 className="text-sm font-medium text-muted-foreground">Severidad máxima</h4>
+                <div className="mt-1">
+                  <SeverityGauge level={bMax} size="sm" showValue />
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Disparadores</h4>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {triggerLabels.length > 0 ? (
-                    triggerLabels.slice(0, 4).map((trigger) => (
-                      <Badge key={trigger} variant="secondary" className="text-xs">
-                        {trigger}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No disponible</span>
-                  )}
+              {triggers.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Disparadores</h4>
+                  <ul className="mt-1 space-y-2">
+                    {triggers.map((t) => (
+                      <li key={t.name} className="text-sm">
+                        <span className="font-medium">{t.name}</span>
+                        {t.description && (
+                          <span className="text-muted-foreground"> — {t.description}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
+              )}
+
+              {regulators.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Reguladores</h4>
+                  <ul className="mt-1 space-y-2">
+                    {regulators.map((r) => (
+                      <li key={r.name} className="text-sm">
+                        <span className="font-medium">{r.name}</span>
+                        {r.description && (
+                          <span className="text-muted-foreground"> — {r.description}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </ScrollArea>
@@ -188,46 +223,36 @@ function SessionContextPanel({
         <ScrollArea className="h-full p-4">
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">{escenarioName}</h3>
-              <Badge variant="outline" className="mt-1">
-                Severidad inicial: {initialSeverity}
-              </Badge>
+              <h3 className="text-lg font-semibold">{scenario?.name ?? 'Escenario'}</h3>
+              <div className="mt-2">
+                <SeverityGauge level={Math.max(0, Math.min(5, scenario?.severity ?? 1))} size="sm" showValue />
+              </div>
             </div>
 
             <Separator />
 
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Descripción</h4>
-              <p className="mt-1 text-sm">{escenarioDescription}</p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Contexto de la situación</h4>
-              <p className="mt-1 text-sm">{situationContext}</p>
-            </div>
-
-            {riskItems.length > 0 && (
+            {escenarioDescription && (
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Banderas de riesgo</h4>
-                <ul className="mt-2 space-y-2">
-                  {riskItems.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <h4 className="text-sm font-medium text-muted-foreground">Descripción</h4>
+                <p className="mt-1 text-sm">{escenarioDescription}</p>
               </div>
             )}
 
-            {restrictionItems.length > 0 && (
+            {scenario?.context && (
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Restricciones</h4>
+                <h4 className="text-sm font-medium text-muted-foreground">Contexto de la situación</h4>
+                <p className="mt-1 text-sm">{scenario.context}</p>
+              </div>
+            )}
+
+            {(scenario?.risk_flags ?? []).length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">Banderas de riesgo</h4>
                 <ul className="mt-2 space-y-2">
-                  {restrictionItems.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm">
-                      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span>{item}</span>
+                  {(scenario?.risk_flags ?? []).map((flag) => (
+                    <li key={flag} className="flex items-start gap-2 text-sm">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <span>{flag}</span>
                     </li>
                   ))}
                 </ul>
@@ -260,7 +285,17 @@ function ChatPageContent() {
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sessionStatus, setSessionStatus] = useState<Sesion["status"]>("active")
-  const [elapsedTime, setElapsedTime] = useState(0)
+
+  // ── Timer de práctica efectiva ────────────────────────────────────────────
+  const [accSeconds, setAccSeconds] = useState(0)       // consolidado en backend
+  const [displaySeconds, setDisplaySeconds] = useState(0) // local, sin requests
+  const segmentStartRef  = useRef<number | null>(null)  // null = timer pausado
+  const accSecondsRef    = useRef(0)                    // espejo de accSeconds para callbacks
+  const idleTimerRef     = useRef<ReturnType<typeof setTimeout>>()
+  const heartbeatRef     = useRef<ReturnType<typeof setInterval>>()
+  const lastActivityRef  = useRef<number>(0)
+  const timerSessionId   = useRef<string | null>(null)  // sessionId activo en el timer
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   // Admin puede cambiar entre vistas
@@ -281,11 +316,29 @@ function ChatPageContent() {
           setActiveSession(session)
           setSelectedPerfilId(session.profile_id)
           setSelectedEscenarioId(session.scenario_id)
-          setSessionStatus(session.ended_at ? "completed" : "active")
+          setSessionStatus(session.status ?? (session.ended_at ? "completed" : "active"))
 
-          const startedAt = new Date(session.started_at)
-          const endedAt = session.ended_at ? new Date(session.ended_at) : new Date()
-          setElapsedTime(Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)))
+          const serverAcc = session.accumulated_seconds ?? 0
+          let localAcc = serverAcc
+          accSecondsRef.current = serverAcc
+
+          // Reconcile localStorage checkpoint vs server value
+          const raw = localStorage.getItem(cpKey(sessionId))
+          if (raw) {
+            try {
+              const cp: TimerCheckpoint = JSON.parse(raw)
+              if (cp.total > serverAcc) {
+                const diff = cp.total - serverAcc
+                await patchSessionTime(sessionId, diff)
+                localAcc = cp.total
+                accSecondsRef.current = cp.total
+              }
+            } catch { /* ignore malformed checkpoint */ }
+            localStorage.removeItem(cpKey(sessionId))
+          }
+
+          setAccSeconds(localAcc)
+          setDisplaySeconds(localAcc)
         }
       } catch {
         toast.error("No se pudo conectar con el backend del chat.")
@@ -322,15 +375,6 @@ function ChatPageContent() {
 
   const canStartChat = Boolean(sesion && perfil && escenario)
   
-  // Timer effect
-  useEffect(() => {
-    if (sessionStatus === "active") {
-      const interval = setInterval(() => {
-        setElapsedTime(prev => prev + 1)
-      }, 1000)
-      return () => clearInterval(interval)
-    }
-  }, [sessionStatus])
 
   // Auto-scroll al último mensaje. El ScrollArea de radix usa un viewport
   // interno [data-radix-scroll-area-viewport]: buscamos ese y le aplicamos
@@ -375,7 +419,154 @@ function ChatPageContent() {
     const secs = seconds % 60
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
-  
+
+  // ── Timer: primitivas ─────────────────────────────────────────────────────
+
+  const stopHeartbeat = useCallback(() => {
+    clearInterval(heartbeatRef.current)
+  }, [])
+
+  const flushDelta = useCallback(async (delta: number, sid: string | null) => {
+    if (delta <= 0 || !sid) return
+    try { await patchSessionTime(sid, delta) } catch { /* silencioso */ }
+  }, [])
+
+  const stopSegment = useCallback((): number => {
+    const start = segmentStartRef.current
+    if (start === null) return 0
+    segmentStartRef.current = null
+    clearTimeout(idleTimerRef.current)
+    stopHeartbeat()
+    const delta = Math.floor((Date.now() - start) / 1000)
+    if (delta > 0) {
+      accSecondsRef.current += delta
+      setAccSeconds(prev => prev + delta)
+    }
+    return delta
+  }, [stopHeartbeat])
+
+  const startHeartbeat = useCallback(() => {
+    stopHeartbeat()
+    heartbeatRef.current = setInterval(() => {
+      const start = segmentStartRef.current
+      if (start === null) return
+      const delta = Math.floor((Date.now() - start) / 1000)
+      if (delta <= 0) return
+      segmentStartRef.current = Date.now()
+      accSecondsRef.current += delta
+      setAccSeconds(prev => prev + delta)
+      const sid = timerSessionId.current
+      if (sid) {
+        localStorage.setItem(cpKey(sid), JSON.stringify({ total: accSecondsRef.current, ts: Date.now() }))
+        void flushDelta(delta, sid)
+      }
+    }, 30_000)
+  }, [stopHeartbeat, flushDelta])
+
+  const resetIdle = useCallback(() => {
+    clearTimeout(idleTimerRef.current)
+    idleTimerRef.current = setTimeout(async () => {
+      const delta = stopSegment()
+      const sid = timerSessionId.current
+      if (delta > 0 && sid) {
+        localStorage.setItem(cpKey(sid), JSON.stringify({ total: accSecondsRef.current, ts: Date.now() }))
+      }
+      await flushDelta(delta, sid)
+    }, 10 * 60 * 1000)          // 10 minutos
+  }, [stopSegment, flushDelta])
+
+  const startSegment = useCallback((status: Sesion["status"]) => {
+    if (segmentStartRef.current !== null) return  // ya corriendo
+    if (status !== 'active') return
+    if (document.visibilityState !== 'visible') return
+    segmentStartRef.current = Date.now()
+    startHeartbeat()
+    resetIdle()
+  }, [startHeartbeat, resetIdle])
+
+  // ── Timer: iniciar cuando la sesión activa carga ──────────────────────────
+  useEffect(() => {
+    if (!sessionId || sessionStatus !== 'active') return
+    timerSessionId.current = sessionId
+    startSegment(sessionStatus)
+    return () => {
+      const delta = stopSegment()
+      const sid = timerSessionId.current
+      if (delta > 0 && sid) {
+        localStorage.setItem(cpKey(sid), JSON.stringify({ total: accSecondsRef.current, ts: Date.now() }))
+      }
+      void flushDelta(delta, sid)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, sessionStatus])
+
+  // ── Timer: beacon helper (funciona en visibilitychange + pagehide) ────────
+  const sendBeaconFlush = useCallback(() => {
+    const delta = stopSegment()
+    if (delta <= 0 || !timerSessionId.current) return
+    const sid = timerSessionId.current
+    // Escribir checkpoint ANTES del beacon (síncrono, nunca falla)
+    localStorage.setItem(cpKey(sid), JSON.stringify({ total: accSecondsRef.current, ts: Date.now() }))
+    const body = JSON.stringify({ delta_seconds: delta })
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000'}/sessions/${sid}/time`
+    const sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }))
+    if (!sent) void flushDelta(delta, sid)  // fallback si sendBeacon falla
+  }, [stopSegment, flushDelta])
+
+  // ── Timer: visibilitychange ───────────────────────────────────────────────
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        sendBeaconFlush()
+      } else {
+        startSegment(sessionStatus)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [sessionStatus, startSegment, sendBeaconFlush])
+
+  // ── Timer: pagehide (recarga / cierre de tab; más fiable que beforeunload) ─
+  useEffect(() => {
+    const onPageHide = () => sendBeaconFlush()
+    window.addEventListener('pagehide', onPageHide)
+    return () => window.removeEventListener('pagehide', onPageHide)
+  }, [sendBeaconFlush])
+
+  // ── Timer: detección de actividad (throttled, 10 s) ───────────────────────
+  useEffect(() => {
+    const onActivity = () => {
+      const now = Date.now()
+      if (now - lastActivityRef.current < 10_000) return
+      lastActivityRef.current = now
+      if (segmentStartRef.current !== null) {
+        resetIdle()
+      } else if (sessionStatus === 'active' && document.visibilityState === 'visible') {
+        startSegment(sessionStatus)
+      }
+    }
+    document.addEventListener('pointermove', onActivity)
+    document.addEventListener('keydown', onActivity)
+    return () => {
+      document.removeEventListener('pointermove', onActivity)
+      document.removeEventListener('keydown', onActivity)
+    }
+  }, [sessionStatus, startSegment, resetIdle])
+
+  // ── Timer: display en tiempo real (solo UI, 0 requests) ───────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const live = segmentStartRef.current !== null
+        ? Math.floor((Date.now() - segmentStartRef.current) / 1000)
+        : 0
+      setDisplaySeconds(prev => {
+        const next = accSeconds + live
+        return prev === next ? prev : next
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [accSeconds])
+
   const handleSendMessage = async () => {
     if (!canStartChat || !inputValue.trim() || isLoading) return
 
@@ -397,6 +588,18 @@ function ChatPageContent() {
     }
 
     if (!sessionForMessage) return
+
+    // Flush del segmento actual antes de enviar (checkpoint natural)
+    const preSendDelta = (() => {
+      const start = segmentStartRef.current
+      if (start === null) return 0
+      const delta = Math.floor((Date.now() - start) / 1000)
+      segmentStartRef.current = Date.now()  // reinicia el segmento
+      setAccSeconds(prev => prev + delta)
+      return delta
+    })()
+    void flushDelta(preSendDelta, sessionForMessage.id)
+    resetIdle()
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -444,7 +647,12 @@ function ChatPageContent() {
           setActiveSession({ ...activeSession, current_severity: data.severity })
         }
         if (data.should_close) {
-          setSessionStatus("completed")
+          const kind = data.closing_kind
+          setSessionStatus(kind === 'crisis' || kind === 'inappropriate' ? 'terminated' : 'completed')
+          // El backend ya cerró la sesión vía SSE — solo detenemos el timer local
+          const closeDelta = stopSegment()
+          void flushDelta(closeDelta, timerSessionId.current)
+          if (timerSessionId.current) localStorage.removeItem(cpKey(timerSessionId.current))
           if (activeSession) {
             setActiveSession({
               ...activeSession,
@@ -452,7 +660,6 @@ function ChatPageContent() {
               current_severity: data.severity,
             })
           }
-          const kind = data.closing_kind
           if (kind === "success") {
             toast.success("Sesión completada con éxito. El paciente se siente mejor.")
           } else if (kind === "crisis") {
@@ -485,8 +692,11 @@ function ChatPageContent() {
 
     void (async () => {
       try {
-        await endSession(activeSession.id)
-        setSessionStatus("completed")
+        const delta = stopSegment()
+        await flushDelta(delta, activeSession.id)
+        await endSession(activeSession.id, 'success')
+        localStorage.removeItem(cpKey(activeSession.id))
+        setSessionStatus('completed')
         setActiveSession({ ...activeSession, ended_at: new Date().toISOString() })
         router.push(`/evaluacion?sesion=${activeSession.id}`)
       } catch {
@@ -495,10 +705,6 @@ function ChatPageContent() {
     })()
   }
   
-  const handlePauseSession = () => {
-    setSessionStatus(sessionStatus === "paused" ? "active" : "paused")
-  }
-
   const handleStartFromSetup = () => {
     if (!selectedPerfilId || !selectedEscenarioId) return
 
@@ -590,22 +796,29 @@ function ChatPageContent() {
       <div className="flex h-full min-w-0 flex-col gap-3">
         <header className="rounded-2xl border border-border/70 bg-background/90 px-3 py-3 shadow-sm backdrop-blur sm:px-4 lg:px-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-semibold leading-tight text-foreground sm:text-2xl">Sesión de simulación</h1>
-              <p className="truncate text-sm text-muted-foreground">
-                {effectiveTeacherView
-                  ? `${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}`
-                  : "Modo estudiante: exploración y percepción del caso en entorno abierto"}
-              </p>
+            <div className="flex min-w-0 items-center gap-3">
+              <Link href="/sesiones">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </Button>
+              </Link>
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-semibold leading-tight text-foreground sm:text-2xl">Sesión de simulación</h1>
+                <p className="truncate text-sm text-muted-foreground">
+                  {effectiveTeacherView
+                    ? `${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}`
+                    : "Modo estudiante: exploración y percepción del caso en entorno abierto"}
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm font-medium">{formatTime(elapsedTime)}</span>
+                <span className="font-mono text-sm font-medium">{formatTime(displaySeconds)}</span>
               </div>
-              <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "paused" ? "secondary" : "outline"}>
-                {sessionStatus === "active" ? "En curso" : sessionStatus === "paused" ? "Pausada" : "Finalizada"}
+              <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "terminated" ? "destructive" : "outline"}>
+                {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
               </Badge>
               
               {isAdmin && (
@@ -628,19 +841,6 @@ function ChatPageContent() {
                 </Button>
               )}
               
-              <Button variant="outline" size="sm" onClick={handlePauseSession}>
-                {sessionStatus === "paused" ? (
-                  <>
-                    <PlayCircle className="mr-2 h-4 w-4" />
-                    Reanudar
-                  </>
-                ) : (
-                  <>
-                    <PauseCircle className="mr-2 h-4 w-4" />
-                    Pausar
-                  </>
-                )}
-              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" size="sm">
@@ -676,23 +876,7 @@ function ChatPageContent() {
                       <SheetTitle>Estado de la sesión</SheetTitle>
                     </SheetHeader>
                     <div className="h-[calc(100%-68px)]">
-                      <SessionContextPanel
-                        perfilName={perfil?.name || 'Perfil no encontrado'}
-                        age={typeof perfil?.traits?.age === 'number' ? (perfil?.traits?.age as number) : undefined}
-                        protoName={String(perfil?.traits?.protopersonaName || 'No especificado')}
-                        pedagogicalObjective={perfil?.description || 'No especificado'}
-                        behaviorMin={1}
-                        behaviorMax={5}
-                        triggerLabels={Array.isArray(perfil?.traits?.triggers) ? (perfil?.traits?.triggers as string[]) : []}
-                        escenarioName={escenario?.name || 'Escenario'}
-                        initialSeverity={Math.max(1, Math.min(5, escenario?.severity || 1))}
-                        escenarioDescription={escenario?.context || 'No disponible'}
-                        situationContext={escenario?.context || 'No disponible'}
-                        riskItems={escenario?.risk_flags || []}
-                        restrictionItems={Object.entries(escenario?.constraints || {})
-                  .filter(([k, v]) => v != null && v !== '' && k !== 'timeLimit' && k !== 'description')
-                  .map(([key, value]) => `${key}: ${String(value)}`)}
-                      />
+                      <SessionContextPanel profile={perfil} scenario={escenario} />
                     </div>
                   </SheetContent>
                 </Sheet>
@@ -797,9 +981,9 @@ function ChatPageContent() {
                   ))}
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    placeholder="Escribe tu intervención..."
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <Textarea
+                    placeholder="Escribe tu intervención... (Shift+Enter para nueva línea)"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {
@@ -809,7 +993,8 @@ function ChatPageContent() {
                       }
                     }}
                     disabled={sessionStatus !== "active"}
-                    className="flex-1"
+                    rows={2}
+                    className="flex-1 resize-none"
                   />
                   <Button
                     onClick={handleSendMessage}
@@ -831,23 +1016,7 @@ function ChatPageContent() {
                   <SeverityGauge level={activeSession?.current_severity ?? escenario?.severity ?? 0} size="sm" showValue />
                 </div>
               </div>
-              <SessionContextPanel
-                perfilName={perfil?.name || 'Perfil no encontrado'}
-                age={typeof perfil?.traits?.age === 'number' ? (perfil?.traits?.age as number) : undefined}
-                protoName={String(perfil?.traits?.protopersonaName || 'No especificado')}
-                pedagogicalObjective={perfil?.description || 'No especificado'}
-                behaviorMin={1}
-                behaviorMax={5}
-                triggerLabels={Array.isArray(perfil?.traits?.triggers) ? (perfil?.traits?.triggers as string[]) : []}
-                escenarioName={escenario?.name || 'Escenario'}
-                initialSeverity={Math.max(1, Math.min(5, escenario?.severity || 1))}
-                escenarioDescription={escenario?.context || 'No disponible'}
-                situationContext={escenario?.context || 'No disponible'}
-                riskItems={escenario?.risk_flags || []}
-                restrictionItems={Object.entries(escenario?.constraints || {})
-                  .filter(([k, v]) => v != null && v !== '' && k !== 'timeLimit' && k !== 'description')
-                  .map(([key, value]) => `${key}: ${String(value)}`)}
-              />
+              <SessionContextPanel profile={perfil} scenario={escenario} />
             </aside>
           ) : (
             <aside className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm lg:block lg:w-80 xl:w-96">

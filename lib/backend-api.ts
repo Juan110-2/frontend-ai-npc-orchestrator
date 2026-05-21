@@ -35,6 +35,8 @@ export type BackendScenario = {
   created_at: string
 }
 
+export type TimeSource = 'explicit' | 'estimated' | 'unavailable' | 'none'
+
 export type BackendSession = {
   id: string
   profile_id: string
@@ -42,6 +44,10 @@ export type BackendSession = {
   user_id: string | null
   assigned_by: string | null
   assigned_at: string | null
+  status: 'active' | 'completed' | 'terminated'
+  accumulated_seconds: number
+  time_source: TimeSource
+  last_interaction_at: string | null
   current_severity: number
   started_at: string
   ended_at: string | null
@@ -197,8 +203,27 @@ export async function deleteScenario(scenarioId: string) {
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
-export async function listSessions() {
-  return request<BackendSession[]>('/sessions/')
+export type PaginatedSessions = {
+  items: BackendSession[]
+  total: number
+  page: number
+  pages: number
+  limit: number
+}
+
+export async function listSessions(params?: {
+  page?: number
+  limit?: number
+  view?: 'mine' | 'assigned'
+  status?: 'active' | 'completed' | 'terminated'
+}) {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  if (params?.view) qs.set('view', params.view)
+  if (params?.status) qs.set('status', params.status)
+  const query = qs.toString() ? `?${qs.toString()}` : ''
+  return request<PaginatedSessions>(`/sessions/${query}`)
 }
 
 export async function getSession(sessionId: string) {
@@ -217,11 +242,29 @@ export async function startSession(payload: {
   })
 }
 
-export async function endSession(sessionId: string) {
-  return request<{ message: string; session_id: string; ended_at: string }>(
+export async function endSession(
+  sessionId: string,
+  closingKind?: 'success' | 'crisis' | 'inappropriate',
+) {
+  return request<{ message: string; session_id: string; ended_at: string; status: string }>(
     `/sessions/${sessionId}/end`,
-    { method: 'PATCH' },
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ closing_kind: closingKind ?? null }),
+    },
   )
+}
+
+export async function patchSessionTime(
+  sessionId: string,
+  deltaSeconds: number,
+): Promise<void> {
+  if (deltaSeconds <= 0) return
+  // Fire-and-forget — not critical; display relies on local state
+  await request<BackendSession>(`/sessions/${sessionId}/time`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delta_seconds: Math.round(deltaSeconds) }),
+  })
 }
 
 // ── Conversation ──────────────────────────────────────────────────────────────
@@ -589,14 +632,27 @@ export type EvaluationListItem = {
   patient_name: string | null
   started_at: string | null
   ended_at: string | null
-  automatic_metrics: Record<string, unknown>
+  automatic_metrics: {
+    turns_trainee?: number
+    turns_patient?: number
+    turns_total?: number
+    risk_alerts_detected?: number
+    severity_peak?: number
+    severity_final?: number
+    duration_minutes?: number
+    last_ai_model?: string | null
+    [key: string]: unknown
+  }
   scores: Record<string, number>
   submitted_at: string | null
   created_at: string | null
 }
 
-export async function listEvaluations() {
-  return request<EvaluationListItem[]>('/evaluation/')
+export async function listEvaluations(params?: { session_ids?: string[] }) {
+  const qs = new URLSearchParams()
+  params?.session_ids?.forEach(id => qs.append('session_ids', id))
+  const query = qs.toString() ? `?${qs.toString()}` : ''
+  return request<EvaluationListItem[]>(`/evaluation/${query}`)
 }
 
 
