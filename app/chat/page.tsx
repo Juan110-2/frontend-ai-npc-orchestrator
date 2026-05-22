@@ -34,7 +34,7 @@ import {
   AlertTriangle,
   FileText,
   StopCircle,
-  PanelRightClose,
+  Info,
   Eye,
   EyeOff
 } from "lucide-react"
@@ -82,11 +82,6 @@ type DisplaySession = {
 type TimerCheckpoint = { total: number; ts: number }
 const cpKey = (sid: string) => `timer_cp_${sid}`
 
-const QUICK_STARTERS = [
-  "Quiero entender mejor cómo te has sentido hoy.",
-  "Gracias por compartir esto conmigo.",
-  "Podemos ir paso a paso, sin prisa.",
-]
 
 function SessionContextPanel({
   profile,
@@ -280,7 +275,7 @@ function ChatPageContent() {
   const [availableEscenarios, setAvailableEscenarios] = useState<BackendScenario[]>([])
   const [activeSession, setActiveSession] = useState<BackendSession | null>(null)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -289,20 +284,23 @@ function ChatPageContent() {
   // ── Timer de práctica efectiva ────────────────────────────────────────────
   const [accSeconds, setAccSeconds] = useState(0)       // consolidado en backend
   const [displaySeconds, setDisplaySeconds] = useState(0) // local, sin requests
-  const segmentStartRef  = useRef<number | null>(null)  // null = timer pausado
-  const accSecondsRef    = useRef(0)                    // espejo de accSeconds para callbacks
-  const idleTimerRef     = useRef<ReturnType<typeof setTimeout>>()
-  const heartbeatRef     = useRef<ReturnType<typeof setInterval>>()
-  const lastActivityRef  = useRef<number>(0)
-  const timerSessionId   = useRef<string | null>(null)  // sessionId activo en el timer
+  const segmentStartRef = useRef<number | null>(null)  // null = timer pausado
+  const accSecondsRef = useRef(0)                    // espejo de accSeconds para callbacks
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const heartbeatRef = useRef<ReturnType<typeof setInterval>>()
+  const lastActivityRef = useRef<number>(0)
+  const timerSessionId = useRef<string | null>(null)  // sessionId activo en el timer
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
+  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null)
+
   // Admin puede cambiar entre vistas
   const [teacherViewOverride, setTeacherViewOverride] = useState<boolean | null>(null)
+  const [finalizeOpen, setFinalizeOpen] = useState(false)
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false)
   const isAdmin = userRole === "admin"
   const effectiveTeacherView = teacherViewOverride ?? (userRole === "teacher" || userRole === "admin")
-  
+
   useEffect(() => {
     void (async () => {
       try {
@@ -353,28 +351,28 @@ function ChatPageContent() {
 
   const sesion: DisplaySession | null = activeSession
     ? {
-        id: activeSession.id,
-        perfilId: activeSession.profile_id,
-        perfilName: perfil?.name || "Perfil",
-        escenarioId: activeSession.scenario_id,
-        escenarioName: escenario?.name || "Escenario",
-        currentSeverity: activeSession.current_severity,
-        endedAt: activeSession.ended_at,
-      }
+      id: activeSession.id,
+      perfilId: activeSession.profile_id,
+      perfilName: perfil?.name || "Perfil",
+      escenarioId: activeSession.scenario_id,
+      escenarioName: escenario?.name || "Escenario",
+      currentSeverity: activeSession.current_severity,
+      endedAt: activeSession.ended_at,
+    }
     : perfil && escenario
       ? {
-          id: `draft-${perfil.id}-${escenario.id}`,
-          perfilId: perfil.id,
-          perfilName: perfil.name,
-          escenarioId: escenario.id,
-          escenarioName: escenario.name,
-          currentSeverity: escenario.severity,
-          endedAt: null,
-        }
+        id: `draft-${perfil.id}-${escenario.id}`,
+        perfilId: perfil.id,
+        perfilName: perfil.name,
+        escenarioId: escenario.id,
+        escenarioName: escenario.name,
+        currentSeverity: escenario.severity,
+        endedAt: null,
+      }
       : null
 
   const canStartChat = Boolean(sesion && perfil && escenario)
-  
+
 
   // Auto-scroll al último mensaje. El ScrollArea de radix usa un viewport
   // interno [data-radix-scroll-area-viewport]: buscamos ese y le aplicamos
@@ -389,7 +387,7 @@ function ChatPageContent() {
       end.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
   }, [messages, isLoading])
-  
+
   // Cargar historial de mensajes al iniciar sesión o cambiar de sesión activa.
   useEffect(() => {
     if (!activeSession?.id) return
@@ -413,7 +411,7 @@ function ChatPageContent() {
       }
     })()
   }, [activeSession?.id])
-  
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -497,7 +495,7 @@ function ChatPageContent() {
       }
       void flushDelta(delta, sid)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, sessionStatus])
 
   // ── Timer: beacon helper (funciona en visibilitychange + pagehide) ────────
@@ -612,6 +610,7 @@ function ChatPageContent() {
     const messageText = inputValue
     setMessages(prev => [...prev, userMessage])
     setInputValue("")
+    if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto'
     setIsLoading(true)
 
     const assistantId = `assistant-${Date.now()}`
@@ -686,7 +685,7 @@ function ChatPageContent() {
       setIsLoading(false)
     }
   }
-  
+
   const handleEndSession = () => {
     if (!activeSession?.id) return
 
@@ -704,7 +703,7 @@ function ChatPageContent() {
       }
     })()
   }
-  
+
   const handleStartFromSetup = () => {
     if (!selectedPerfilId || !selectedEscenarioId) return
 
@@ -719,10 +718,6 @@ function ChatPageContent() {
         toast.error("No se pudo crear la sesión de chat.")
       }
     })()
-  }
-
-  const handleUseStarter = (starter: string) => {
-    setInputValue((prev) => (prev.trim() ? `${prev.trim()} ${starter}` : starter))
   }
 
   if (isBootstrapping) {
@@ -790,100 +785,140 @@ function ChatPageContent() {
       </div>
     )
   }
-  
+
   return (
     <div className="h-[calc(100dvh-3.5rem)] w-full bg-gradient-to-b from-muted/35 via-background to-background p-2 sm:p-3 lg:h-screen lg:p-4">
       <div className="flex h-full min-w-0 flex-col gap-3">
-        <header className="rounded-2xl border border-border/70 bg-background/90 px-3 py-3 shadow-sm backdrop-blur sm:px-4 lg:px-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <header className="rounded-2xl border border-border/70 bg-background/90 px-3 py-2.5 shadow-sm backdrop-blur sm:px-4 lg:px-5">
+          {/* ── Mobile / Tablet ── */}
+          <div className="flex flex-col gap-2.5 xl:hidden">
+            <div className="flex items-center gap-2">
+              <Link href="/sesiones">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </Button>
+              </Link>
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-base font-semibold leading-tight text-foreground">Sesión de simulación</h1>
+                <p className="truncate text-xs text-muted-foreground">
+                  {effectiveTeacherView ? `${perfil?.name || "Perfil"} — ${escenario?.name || "Escenario"}` : "Modo exploración"}
+                </p>
+              </div>
+              {effectiveTeacherView && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" onClick={() => setStatusSheetOpen(true)}>
+                  <Info className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1">
+                <Clock className="h-3 w-3 text-muted-foreground" />
+                <span className="font-mono text-xs font-medium tabular-nums">{formatTime(displaySeconds)}</span>
+                {sesion && effectiveTeacherView && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <SeverityGauge
+                      level={activeSession?.current_severity ?? escenario?.severity ?? 0}
+                      size="sm"
+                      showValue
+                    />
+                  </>
+                )}
+              </div>
+              <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "terminated" ? "destructive" : "outline"} className="hidden text-xs sm:inline-flex">
+                {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
+              </Badge>
+              <div className="ml-auto flex items-center gap-1.5">
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setTeacherViewOverride(prev => !prev)} title={effectiveTeacherView ? "Vista estudiante" : "Vista profesor"}>
+                    {effectiveTeacherView ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full sm:w-auto sm:rounded-full sm:px-3" onClick={() => setFinalizeOpen(true)}>
+                  <StopCircle className="h-4 w-4 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline">Finalizar</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Desktop ── */}
+          <div className="hidden xl:flex xl:items-start xl:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <Link href="/sesiones">
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                 </Button>
               </Link>
               <div className="min-w-0">
-                <h1 className="truncate text-xl font-semibold leading-tight text-foreground sm:text-2xl">Sesión de simulación</h1>
+                <h1 className="truncate text-xl font-semibold leading-tight text-foreground">Sesión de simulación</h1>
                 <p className="truncate text-sm text-muted-foreground">
-                  {effectiveTeacherView
-                    ? `${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}`
-                    : "Modo estudiante: exploración y percepción del caso en entorno abierto"}
+                  {effectiveTeacherView ? `${perfil?.name || "Perfil"} - ${escenario?.name || "Escenario"}` : "Modo estudiante: exploración y percepción del caso en entorno abierto"}
                 </p>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="font-mono text-sm font-medium">{formatTime(displaySeconds)}</span>
+                {sesion && effectiveTeacherView && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <SeverityGauge
+                      level={activeSession?.current_severity ?? escenario?.severity ?? 0}
+                      size="sm"
+                      showValue
+                    />
+                  </>
+                )}
               </div>
               <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "terminated" ? "destructive" : "outline"}>
                 {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
               </Badge>
-              
               {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setTeacherViewOverride(prev => !prev)}
-                >
-                  {effectiveTeacherView ? (
-                    <>
-                      <EyeOff className="mr-2 h-4 w-4" />
-                      Vista estudiante
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Vista profesor
-                    </>
-                  )}
+                <Button variant="outline" size="sm" onClick={() => setTeacherViewOverride(prev => !prev)}>
+                  {effectiveTeacherView ? <><EyeOff className="mr-2 h-4 w-4" />Vista estudiante</> : <><Eye className="mr-2 h-4 w-4" />Vista profesor</>}
                 </Button>
               )}
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <StopCircle className="mr-2 h-4 w-4" />
-                    Finalizar
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Finalizar la sesión?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción cerrará la sesión de forma permanente y no podrás seguir enviando mensajes. Se generará la evaluación automáticamente.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleEndSession} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Sí, finalizar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              {effectiveTeacherView && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm" className="lg:hidden">
-                      <PanelRightClose className="mr-2 h-4 w-4" />
-                      Estado
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-full max-w-sm p-0 sm:max-w-md">
-                    <SheetHeader className="p-4">
-                      <SheetTitle>Estado de la sesión</SheetTitle>
-                    </SheetHeader>
-                    <div className="h-[calc(100%-68px)]">
-                      <SessionContextPanel profile={perfil} scenario={escenario} />
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
+              <Button variant="destructive" size="sm" onClick={() => setFinalizeOpen(true)}>
+                <StopCircle className="mr-2 h-4 w-4" />
+                Finalizar
+              </Button>
             </div>
           </div>
         </header>
+
+        {/* Shared: finalizar */}
+        <AlertDialog open={finalizeOpen} onOpenChange={setFinalizeOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Finalizar la sesión?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción cerrará la sesión de forma permanente y no podrás seguir enviando mensajes. Se generará la evaluación automáticamente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleEndSession} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sí, finalizar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Shared: estado panel */}
+        {effectiveTeacherView && (
+          <Sheet open={statusSheetOpen} onOpenChange={setStatusSheetOpen}>
+            <SheetContent side="right" className="w-full max-w-sm p-0 sm:max-w-md">
+              <SheetHeader className="p-4">
+                <SheetTitle>Estado de la sesión</SheetTitle>
+              </SheetHeader>
+              <div className="h-[calc(100%-68px)]">
+                <SessionContextPanel profile={perfil} scenario={escenario} />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
 
         <div className="flex min-h-0 flex-1 gap-3">
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-sm">
@@ -907,11 +942,10 @@ function ChatPageContent() {
                     key={message.id}
                     className={`flex gap-3 sm:gap-4 ${message.role === "user" ? "flex-row-reverse" : ""}`}
                   >
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${
-                      message.role === "user"
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${message.role === "user"
                         ? "bg-accent text-accent-foreground"
                         : "bg-muted"
-                    }`}>
+                      }`}>
                       {message.role === "user" ? (
                         <User className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
@@ -919,17 +953,13 @@ function ChatPageContent() {
                       )}
                     </div>
                     <div className={`flex max-w-[94%] flex-col gap-2 md:max-w-[84%] xl:max-w-[72%] ${message.role === "user" ? "items-end" : ""}`}>
-                      <div className={`rounded-2xl px-4 py-3 ${
-                        message.role === "user"
+                      <div className={`rounded-2xl px-4 py-3 ${message.role === "user"
                           ? "bg-accent text-accent-foreground"
                           : "border bg-background"
-                      }`}>
+                        }`}>
                         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                          {message.role === 'user' ? 'Estudiante' : 'Paciente'}
-                        </Badge>
                         <span className="text-xs text-muted-foreground">
                           {new Date(message.timestamp).toLocaleTimeString("es-ES", {
                             hour: "2-digit",
@@ -964,58 +994,65 @@ function ChatPageContent() {
               </div>
             </ScrollArea>
 
-            <div className="border-t bg-background/95 p-3 sm:p-4">
-              <div className="mx-auto w-full max-w-5xl space-y-3">
-                <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  {QUICK_STARTERS.map((starter) => (
-                    <Button
-                      key={starter}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 shrink-0 rounded-full border border-border/80 bg-muted/40 px-3 text-xs"
-                      onClick={() => handleUseStarter(starter)}
-                    >
-                      {starter}
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                  <Textarea
-                    placeholder="Escribe tu intervención... (Shift+Enter para nueva línea)"
+            {/* Mobile input */}
+            <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+                  <input
+                    type="text"
+                    placeholder=""
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSendMessage()
-                      }
-                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSendMessage() } }}
                     disabled={sessionStatus !== "active"}
-                    rows={2}
-                    className="flex-1 resize-none"
+                    className="flex-1 border-0 bg-transparent text-[13px] leading-4 outline-none disabled:opacity-50"
                   />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || isLoading || sessionStatus !== "active"}
-                    className="sm:w-auto"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
                 </div>
+                <Button
+                  size="icon"
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoading || sessionStatus !== "active"}
+                  className="h-7 w-7 shrink-0 rounded-full bg-slate-700 text-white shadow-sm hover:bg-slate-800 disabled:opacity-30"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Desktop input — barra delgada, elegante y distinguible */}
+            <div className="hidden border-t bg-background/95 px-2 py-1.5 sm:block">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+                  <Textarea
+                    ref={desktopTextareaRef}
+                    placeholder="Escribe tu intervención…"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onInput={(e) => {
+                      const el = e.currentTarget
+                      el.style.height = 'auto'
+                      el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+                    disabled={sessionStatus !== "active"}
+                    rows={1}
+                    className="flex-1 min-h-[28px] resize-none overflow-y-auto border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoading || sessionStatus !== "active"}
+                  className="h-7 w-7 shrink-0 rounded-full bg-slate-700 text-white shadow-sm hover:bg-slate-800 disabled:opacity-30"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
           </section>
 
           {effectiveTeacherView ? (
             <aside className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-sm lg:block lg:w-80 xl:w-96">
-              <div className="border-b bg-muted/30 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium text-muted-foreground">Severidad actual</span>
-                  <SeverityGauge level={activeSession?.current_severity ?? escenario?.severity ?? 0} size="sm" showValue />
-                </div>
-              </div>
               <SessionContextPanel profile={perfil} scenario={escenario} />
             </aside>
           ) : (

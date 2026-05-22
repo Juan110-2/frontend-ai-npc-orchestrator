@@ -297,20 +297,18 @@ export default function AdminMetricsPage() {
           <Card>
             <CardHeader>
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle>Log de llamadas</CardTitle>
-                    <CardDescription>
-                      {callsTotal > 0
-                        ? `${callsTotal} registros · página ${callsPage} de ${Math.ceil(callsTotal / CALLS_PAGE_SIZE)} | ${Math.floor(CALLS_PAGE_SIZE / 3)} turnos/página`
-                        : "Para auditoría y debugging"}
-                    </CardDescription>
-                  </div>
+                <div>
+                  <CardTitle>Log de llamadas</CardTitle>
+                  <CardDescription>
+                    {callsTotal > 0
+                      ? <><span>{callsTotal} registros · página {callsPage} de {Math.ceil(callsTotal / CALLS_PAGE_SIZE)}</span><span className="hidden sm:inline"> | {Math.floor(CALLS_PAGE_SIZE / 3)} turnos/página</span></>
+                      : "Para auditoría y debugging"}
+                  </CardDescription>
                 </div>
                 {/* Filtros */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                   <Select value={callsProvider} onValueChange={setCallsProvider}>
-                    <SelectTrigger className="w-52 h-8 text-sm"><SelectValue placeholder="IA" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm sm:w-52"><SelectValue placeholder="IA" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos los proveedores</SelectItem>
                       <SelectItem value="gemini">Gemini</SelectItem>
@@ -319,7 +317,7 @@ export default function AdminMetricsPage() {
                     </SelectContent>
                   </Select>
                   <Select value={callsPurpose} onValueChange={setCallsPurpose}>
-                    <SelectTrigger className="w-48 h-8 text-sm"><SelectValue placeholder="Propósito" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm sm:w-48"><SelectValue placeholder="Propósito" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos los propósitos</SelectItem>
                       <SelectItem value="orchestrator">Orchestrator</SelectItem>
@@ -333,7 +331,7 @@ export default function AdminMetricsPage() {
                       value={callsSessionInput}
                       onChange={(e) => setCallsSessionInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSessionSearch() }}
-                      className="w-72 h-8 text-sm"
+                      className="h-8 flex-1 text-sm sm:w-72 sm:flex-none"
                     />
                     <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={handleSessionSearch}>
                       <Search className="h-3.5 w-3.5" />
@@ -458,7 +456,7 @@ export default function AdminMetricsPage() {
               </div>
 
               {callsTotal > CALLS_PAGE_SIZE && (
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-col items-center gap-2 text-sm sm:flex-row sm:justify-between">
                   <span className="text-muted-foreground">
                     {(callsPage - 1) * CALLS_PAGE_SIZE + 1}–{Math.min(callsPage * CALLS_PAGE_SIZE, callsTotal)} de {callsTotal}
                   </span>
@@ -466,7 +464,7 @@ export default function AdminMetricsPage() {
                     <Button variant="outline" size="sm" disabled={callsPage === 1 || callsLoading} onClick={() => handleCallsPageChange(callsPage - 1)}>
                       ← Anterior
                     </Button>
-                    <span className="tabular-nums text-muted-foreground px-1">
+                    <span className="tabular-nums text-muted-foreground px-1 whitespace-nowrap">
                       {callsPage} / {Math.ceil(callsTotal / CALLS_PAGE_SIZE)}
                     </span>
                     <Button variant="outline" size="sm" disabled={callsPage >= Math.ceil(callsTotal / CALLS_PAGE_SIZE) || callsLoading} onClick={() => handleCallsPageChange(callsPage + 1)}>
