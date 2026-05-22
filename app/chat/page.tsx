@@ -293,6 +293,7 @@ function ChatPageContent() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const mobileTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Admin puede cambiar entre vistas
   const [teacherViewOverride, setTeacherViewOverride] = useState<boolean | null>(null)
@@ -611,6 +612,7 @@ function ChatPageContent() {
     setMessages(prev => [...prev, userMessage])
     setInputValue("")
     if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto'
+    if (mobileTextareaRef.current) mobileTextareaRef.current.style.height = 'auto'
     setIsLoading(true)
 
     const assistantId = `assistant-${Date.now()}`
@@ -957,7 +959,7 @@ function ChatPageContent() {
                           ? "bg-accent text-accent-foreground"
                           : "border bg-background"
                         }`}>
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed sm:break-words [overflow-wrap:anywhere] sm:[overflow-wrap:normal]">{message.content}</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs text-muted-foreground">
@@ -996,16 +998,22 @@ function ChatPageContent() {
 
             {/* Mobile input */}
             <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
-              <div className="flex items-center gap-2">
-                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
-                  <input
-                    type="text"
+              <div className="flex items-end gap-2">
+                <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+                  <Textarea
+                    ref={mobileTextareaRef}
                     placeholder=""
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSendMessage() } }}
+                    onInput={(e) => {
+                      const el = e.currentTarget
+                      el.style.height = 'auto'
+                      el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                     disabled={sessionStatus !== "active"}
-                    className="flex-1 border-0 bg-transparent text-[13px] leading-4 outline-none disabled:opacity-50"
+                    rows={1}
+                    className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 <Button
@@ -1021,8 +1029,8 @@ function ChatPageContent() {
 
             {/* Desktop input — barra delgada, elegante y distinguible */}
             <div className="hidden border-t bg-background/95 px-2 py-1.5 sm:block">
-              <div className="flex items-center gap-2">
-                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+              <div className="flex items-end gap-2">
+                <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
                   <Textarea
                     ref={desktopTextareaRef}
                     placeholder="Escribe tu intervención…"
@@ -1031,12 +1039,12 @@ function ChatPageContent() {
                     onInput={(e) => {
                       const el = e.currentTarget
                       el.style.height = 'auto'
-                      el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+                      el.style.height = Math.min(el.scrollHeight, 160) + 'px'
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                     disabled={sessionStatus !== "active"}
                     rows={1}
-                    className="flex-1 min-h-[28px] resize-none overflow-y-auto border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 <Button
