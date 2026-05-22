@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/credenciales', '/auth/recuperar-credenciales', '/auth/registro', '/auth/callback']
+const PUBLIC_PATHS = ['/auth/login', '/auth/credenciales', '/auth/recuperar-credenciales', '/auth/registro', '/auth/callback', '/auth/restablecer-clave']
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
@@ -45,6 +45,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && isPublic) {
+    if (pathname.startsWith('/auth/restablecer-clave')) {
+      return supabaseResponse
+    }
     return NextResponse.redirect(new URL('/', request.url))
   }
 

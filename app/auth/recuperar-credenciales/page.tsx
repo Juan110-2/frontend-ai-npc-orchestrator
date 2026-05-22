@@ -20,7 +20,7 @@ export default function RecuperarContrasenaPage() {
       setIsLoading(true)
       const supabase = createClient()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/auth/nueva-contrasena`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/restablecer-clave`,
       })
       if (error) throw new Error(error.message)
       setSent(true)
