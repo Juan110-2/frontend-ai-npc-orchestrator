@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Search, Play, Square, MoreHorizontal, Eye, MessageSquare,
-  ClipboardCheck, Clock, Download, Loader2, CheckCircle2, PlayCircle,
+  ClipboardCheck, Clock, Download, FileText, Loader2, CheckCircle2, PlayCircle,
   UserCheck, UsersRound, Check,
 } from 'lucide-react';
+import { buildConversationHTML } from '@/lib/export-html';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -28,7 +30,7 @@ import type { Sesion, SessionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
   listProfiles, listScenarios, listSessions, listEvaluations,
-  exportConversationMarkdown, startSession, listStudents,
+  exportConversationJSON, startSession, listStudents, adminListUsers,
   type BackendProfile, type BackendScenario, type BackendSession, type BackendUserProfile,
   type EvaluationListItem, type TimeSource,
 } from '@/lib/backend-api';
@@ -516,22 +518,40 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
                 </DropdownMenuItem>
               )}
               {canExport && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    try {
-                      const { filename, content } = await exportConversationMarkdown(sesion.id);
-                      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url; a.download = filename; a.click();
-                      URL.revokeObjectURL(url);
-                    } catch (e) {
-                      toast.error('No se pudo exportar: ' + String(e));
-                    }
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" /> Exportar conversación
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        const { filename, content } = await exportConversationJSON(sesion.id);
+                        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = filename; a.click();
+                        URL.revokeObjectURL(url);
+                      } catch (e) {
+                        toast.error('No se pudo exportar: ' + String(e));
+                      }
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Exportar (.txt)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        const html = await buildConversationHTML(sesion.id);
+                        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const win = window.open(url, '_blank');
+                        if (!win) { toast.error('Permite ventanas emergentes para exportar.'); return; }
+                        setTimeout(() => URL.revokeObjectURL(url), 30000);
+                      } catch (e) {
+                        toast.error('No se pudo generar la vista: ' + String(e));
+                      }
+                    }}
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Vista previa / PDF
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -634,7 +654,8 @@ function mapSession(
 }
 
 export default function SesionesPage() {
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
+  const currentUserId = user?.id ?? null;
 
   // ── datos de referencia (cargados una vez) ─────────────────────────────────
   const [availableProfiles, setAvailableProfiles] = useState<BackendProfile[]>([]);
@@ -654,17 +675,26 @@ export default function SesionesPage() {
   const [assignedTotal, setAssignedTotal] = useState(0);
   const [assignedIsLoading, setAssignedIsLoading] = useState(false);
 
-  const [activeSection, setActiveSection] = useState<'mine' | 'assigned'>('mine');
+  // ── sección "todas" (solo admin) ───────────────────────────────────────────
+  const [allSessions, setAllSessions] = useState<SesionWithOwner[]>([]);
+  const [allTotal, setAllTotal] = useState(0);
+  const [allIsLoading, setAllIsLoading] = useState(false);
+  const [allSearch, setAllSearch] = useState('');
+  const [allTab, setAllTab] = useState('all');
+  const [allPage, setAllPage] = useState(1);
+  const [assignerFilter, setAssignerFilter] = useState<string>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [staffMap, setStaffMap] = useState<Map<string, BackendUserProfile>>(new Map());
+
+  const [activeSection, setActiveSection] = useState<'mine' | 'assigned' | 'all'>('mine');
 
   const [mySearch, setMySearch] = useState('');
   const [myTab, setMyTab] = useState('all');
   const [myPage, setMyPage] = useState(1);
-  const [myRefreshKey, setMyRefreshKey] = useState(0);
 
   const [assignedSearch, setAssignedSearch] = useState('');
   const [assignedTab, setAssignedTab] = useState('all');
   const [assignedPage, setAssignedPage] = useState(1);
-  const [assignedRefreshKey, setAssignedRefreshKey] = useState(0);
 
   // ── carga de referencia ────────────────────────────────────────────────────
   useEffect(() => {
@@ -727,6 +757,28 @@ export default function SesionesPage() {
     }
   };
 
+  const loadAllSessions = async (
+    page: number,
+    tab: string,
+    pMap: Map<string, BackendProfile>,
+    sMap: Map<string, BackendScenario>,
+    stMap: Map<string, BackendUserProfile>,
+  ) => {
+    setAllIsLoading(true);
+    try {
+      const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
+      const { items, total } = await listSessions({ page, limit: PAGE_SIZE, status });
+      const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      const evalMap = new Map(evals.map(e => [e.session_id, e]));
+      setAllSessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
+      setAllTotal(total);
+    } catch {
+      toast.error('No se pudieron cargar todas las sesiones.');
+    } finally {
+      setAllIsLoading(false);
+    }
+  };
+
   // ── efectos ────────────────────────────────────────────────────────────────
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -741,34 +793,70 @@ export default function SesionesPage() {
   }, [refLoaded, activeSection, assignedPage, assignedTab, reloadKey, profileMap, scenarioMap, studentMap]);
 
   useEffect(() => {
-    setMyPage(1);
-  }, [myTab]);
+    if (!refLoaded || activeSection !== 'all') return;
+    if (staffMap.size === 0) {
+      adminListUsers()
+        .then(users => setStaffMap(new Map(users.map(u => [u.id, u]))))
+        .catch(() => {});
+    }
+    void loadAllSessions(allPage, allTab, profileMap, scenarioMap, studentMap);
+  }, [refLoaded, activeSection, allPage, allTab, reloadKey, profileMap, scenarioMap, studentMap]);
 
-  useEffect(() => {
-    setAssignedPage(1);
-  }, [assignedTab]);
+  useEffect(() => { setMyPage(1); }, [myTab]);
+  useEffect(() => { setAssignedPage(1); }, [assignedTab]);
+  useEffect(() => { setAllPage(1); }, [allTab]);
+  useEffect(() => { setAssignerFilter('all'); setAssigneeFilter('all'); }, [activeSection]);
 
   const refreshAll = () => {
     setReloadKey(k => k + 1);
   };
 
   const isMine = activeSection === 'mine';
-  const currentSearch = isMine ? mySearch : assignedSearch;
-  const setCurrentSearch = isMine ? setMySearch : setAssignedSearch;
-  const currentTab = isMine ? myTab : assignedTab;
-  const setCurrentTab = isMine ? setMyTab : setAssignedTab;
-  const currentPage = isMine ? myPage : assignedPage;
-  const setCurrentPage = isMine ? setMyPage : setAssignedPage;
-  const currentTotal = isMine ? myTotal : assignedTotal;
-  const currentSessions = isMine ? mySessions : assignedSessions;
-  const currentIsLoading = isMine ? myIsLoading : assignedIsLoading;
+  const isAll = activeSection === 'all';
+  const currentSearch = isMine ? mySearch : isAll ? allSearch : assignedSearch;
+  const setCurrentSearch = isMine ? setMySearch : isAll ? setAllSearch : setAssignedSearch;
+  const currentTab = isMine ? myTab : isAll ? allTab : assignedTab;
+  const setCurrentTab = isMine ? setMyTab : isAll ? setAllTab : setAssignedTab;
+  const currentPage = isMine ? myPage : isAll ? allPage : assignedPage;
+  const setCurrentPage = isMine ? setMyPage : isAll ? setAllPage : setAssignedPage;
+  const currentTotal = isMine ? myTotal : isAll ? allTotal : assignedTotal;
+  const currentSessions = isMine ? mySessions : isAll ? allSessions : assignedSessions;
+  const currentIsLoading = isMine ? myIsLoading : isAll ? allIsLoading : assignedIsLoading;
   const isTeacherOrAdmin = userRole === 'teacher' || userRole === 'admin';
+  const isAdmin = userRole === 'admin';
+
+  // Build assigner/assignee option lists from currently loaded sessions
+  const uniqueAssigners = isAll ? (() => {
+    const map = new Map<string, string>();
+    allSessions.forEach(s => {
+      if (s.assignedBy && s.assignedBy !== currentUserId) {
+        const u = staffMap.get(s.assignedBy);
+        map.set(s.assignedBy, u?.full_name ?? u?.email ?? s.assignedBy.slice(0, 8));
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  })() : [];
+
+  const uniqueAssignees = isAll ? (() => {
+    const map = new Map<string, string>();
+    allSessions.forEach(s => {
+      if (s.userId && s.userId !== currentUserId) {
+        const u = studentMap.get(s.userId) ?? staffMap.get(s.userId);
+        map.set(s.userId, u?.full_name ?? u?.email ?? s.userId.slice(0, 8));
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  })() : [];
 
   const filteredSessions = currentSessions.filter(s => {
     const q = currentSearch.toLowerCase();
-    return !currentSearch.trim() ||
+    const matchesSearch = !currentSearch.trim() ||
       s.perfilName.toLowerCase().includes(q) ||
-      s.escenarioName.toLowerCase().includes(q);
+      s.escenarioName.toLowerCase().includes(q) ||
+      (s.assignedToName?.toLowerCase().includes(q) ?? false);
+    const matchesAssigner = !isAll || assignerFilter === 'all' || s.assignedBy === assignerFilter;
+    const matchesAssignee = !isAll || assigneeFilter === 'all' || s.userId === assigneeFilter;
+    return matchesSearch && matchesAssigner && matchesAssignee;
   });
 
   return (
@@ -843,17 +931,30 @@ export default function SesionesPage() {
             onClick={() => setActiveSection('assigned')}
             className={cn(
               'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-              !isMine
+              activeSection === 'assigned'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             Asignadas por mí ({assignedTotal})
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveSection('all')}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                isAll
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Todas ({isAll ? allTotal : '…'})
+            </button>
+          )}
         </div>
       )}
 
-      {/* Sub-tabs + búsqueda */}
+      {/* Sub-tabs + filtros + búsqueda */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full sm:w-auto">
           <TabsList className="w-full overflow-x-auto whitespace-nowrap sm:w-auto">
@@ -863,14 +964,52 @@ export default function SesionesPage() {
             <TabsTrigger value="terminated">Terminadas</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="relative flex-1 sm:w-64 sm:flex-none">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar en esta página..."
-            value={currentSearch}
-            onChange={(e) => setCurrentSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          {isAll && (
+            <>
+              <Select value={assignerFilter} onValueChange={setAssignerFilter}>
+                <SelectTrigger className="min-w-36">
+                  <SelectValue placeholder="Todos los asignadores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los asignadores</SelectItem>
+                  {uniqueAssigners.map(({ id, name }) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                <SelectTrigger className="min-w-36">
+                  <SelectValue placeholder="Todos los estudiantes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estudiantes</SelectItem>
+                  {uniqueAssignees.map(({ id, name }) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(assignerFilter !== 'all' || assigneeFilter !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setAssignerFilter('all'); setAssigneeFilter('all'); }}
+                  className="text-muted-foreground"
+                >
+                  Limpiar filtros
+                </Button>
+              )}
+            </>
+          )}
+          <div className="relative sm:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar en esta página..."
+              value={currentSearch}
+              onChange={(e) => setCurrentSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ClipboardCheck, Search, ArrowRight, CheckCircle, Clock, UserCheck } from "lucide-react"
 import { toast } from "sonner"
 import { listEvaluations, type EvaluationListItem } from "@/lib/backend-api"
@@ -31,7 +32,7 @@ function EvaluationList() {
 
   const [items, setItems] = useState<EvaluationListItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeSection, setActiveSection] = useState<"mine" | "students">("mine")
+  const [activeSection, setActiveSection] = useState<"mine" | "students" | "all">("mine")
 
   const [mySearch, setMySearch] = useState("")
   const [myDraftPage, setMyDraftPage] = useState(1)
@@ -40,6 +41,12 @@ function EvaluationList() {
   const [studentSearch, setStudentSearch] = useState("")
   const [studentDraftPage, setStudentDraftPage] = useState(1)
   const [studentSubmittedPage, setStudentSubmittedPage] = useState(1)
+
+  const [allSearch, setAllSearch] = useState("")
+  const [allDraftPage, setAllDraftPage] = useState(1)
+  const [allSubmittedPage, setAllSubmittedPage] = useState(1)
+  const [assignerFilter, setAssignerFilter] = useState("all")
+  const [studentFilter, setStudentFilter] = useState("all")
 
   useEffect(() => {
     void (async () => {
@@ -55,25 +62,55 @@ function EvaluationList() {
 
   useEffect(() => { setMyDraftPage(1); setMySubmittedPage(1) }, [mySearch])
   useEffect(() => { setStudentDraftPage(1); setStudentSubmittedPage(1) }, [studentSearch])
+  useEffect(() => { setAllDraftPage(1); setAllSubmittedPage(1) }, [allSearch])
+  useEffect(() => { setAssignerFilter("all"); setStudentFilter("all") }, [activeSection])
 
-  const rawMine = items.filter(e => !e.student_id || e.student_id === currentUserId)
-  const rawStudents = items.filter(e => !!e.student_id && e.student_id !== currentUserId)
+  // "mine": propias  |  "students": asignadas por mí  |  "all": todo (solo admin)
+  const rawMine = items.filter(e => e.student_id === currentUserId)
+  const rawStudents = items.filter(e =>
+    e.student_id !== currentUserId && e.assigned_by_id === currentUserId
+  )
+  const rawAll = items.filter(e => e.student_id !== currentUserId)
 
   const isMine = activeSection === "mine"
-  const currentSearch = isMine ? mySearch : studentSearch
-  const setCurrentSearch = isMine ? setMySearch : setStudentSearch
-  const draftPage = isMine ? myDraftPage : studentDraftPage
-  const setDraftPage = isMine ? setMyDraftPage : setStudentDraftPage
-  const submittedPage = isMine ? mySubmittedPage : studentSubmittedPage
-  const setSubmittedPage = isMine ? setMySubmittedPage : setStudentSubmittedPage
-  const rawCurrent = isMine ? rawMine : rawStudents
+  const isAll = activeSection === "all"
+  const isAdmin = userRole === "admin"
 
-  const filtered = !currentSearch.trim()
-    ? rawCurrent
-    : rawCurrent.filter(e =>
-      (e.patient_name ?? "").toLowerCase().includes(currentSearch.toLowerCase()) ||
-      (e.student_name ?? "").toLowerCase().includes(currentSearch.toLowerCase())
-    )
+  const currentSearch = isMine ? mySearch : isAll ? allSearch : studentSearch
+  const setCurrentSearch = isMine ? setMySearch : isAll ? setAllSearch : setStudentSearch
+  const draftPage = isMine ? myDraftPage : isAll ? allDraftPage : studentDraftPage
+  const setDraftPage = isMine ? setMyDraftPage : isAll ? setAllDraftPage : setStudentDraftPage
+  const submittedPage = isMine ? mySubmittedPage : isAll ? allSubmittedPage : studentSubmittedPage
+  const setSubmittedPage = isMine ? setMySubmittedPage : isAll ? setAllSubmittedPage : setStudentSubmittedPage
+  const rawCurrent = isMine ? rawMine : isAll ? rawAll : rawStudents
+
+  const uniqueAssigners = isAll ? (() => {
+    const map = new Map<string, string>()
+    rawAll.forEach(e => {
+      if (e.assigned_by_id && e.assigned_by_id !== currentUserId)
+        map.set(e.assigned_by_id, e.assigned_by_name ?? e.assigned_by_id.slice(0, 8))
+    })
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  })() : []
+
+  const uniqueStudents = isAll ? (() => {
+    const map = new Map<string, string>()
+    rawAll.forEach(e => {
+      if (e.student_id && e.student_id !== currentUserId)
+        map.set(e.student_id, e.student_name ?? e.student_id.slice(0, 8))
+    })
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  })() : []
+
+  const filtered = rawCurrent.filter(e => {
+    const q = currentSearch.toLowerCase()
+    const matchesSearch = !currentSearch.trim() ||
+      (e.patient_name ?? "").toLowerCase().includes(q) ||
+      (e.student_name ?? "").toLowerCase().includes(q)
+    const matchesAssigner = !isAll || assignerFilter === "all" || e.assigned_by_id === assignerFilter
+    const matchesStudent = !isAll || studentFilter === "all" || e.student_id === studentFilter
+    return matchesSearch && matchesAssigner && matchesStudent
+  })
 
   const drafts = filtered.filter(e => e.status === "draft")
   const submitted = filtered.filter(e => e.status !== "draft")
@@ -91,8 +128,8 @@ function EvaluationList() {
         }
       />
 
-      {/* Tabs primarios — solo para staff cuando hay evaluaciones de estudiantes */}
-      {isStaff && rawStudents.length > 0 && (
+      {/* Tabs primarios */}
+      {isStaff && (
         <div className="mb-5 flex border-b">
           <button
             onClick={() => setActiveSection("mine")}
@@ -109,24 +146,73 @@ function EvaluationList() {
             onClick={() => setActiveSection("students")}
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-              !isMine
+              activeSection === "students"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             De mis estudiantes ({rawStudents.length})
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveSection("all")}
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                isAll
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Todas ({isAll ? rawAll.length : "…"})
+            </button>
+          )}
         </div>
       )}
 
-      <div className="mb-4 mt-4 max-w-md">
+      <div className="mb-4 mt-4 flex flex-wrap items-center gap-3">
+        {isAll && (
+          <>
+            <Select value={assignerFilter} onValueChange={setAssignerFilter}>
+              <SelectTrigger className="min-w-36">
+                <SelectValue placeholder="Todos los asignadores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los asignadores</SelectItem>
+                {uniqueAssigners.map(({ id, name }) => (
+                  <SelectItem key={id} value={id}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={studentFilter} onValueChange={setStudentFilter}>
+              <SelectTrigger className="min-w-36">
+                <SelectValue placeholder="Todos los estudiantes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estudiantes</SelectItem>
+                {uniqueStudents.map(({ id, name }) => (
+                  <SelectItem key={id} value={id}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(assignerFilter !== "all" || studentFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setAssignerFilter("all"); setStudentFilter("all") }}
+                className="text-muted-foreground"
+              >
+                Limpiar filtros
+              </Button>
+            )}
+          </>
+        )}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={isMine ? "Buscar por perfil…" : "Buscar por perfil o estudiante…"}
             value={currentSearch}
             onChange={(e) => setCurrentSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 sm:w-64"
           />
         </div>
       </div>

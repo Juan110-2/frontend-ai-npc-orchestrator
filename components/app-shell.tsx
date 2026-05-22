@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
+import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuth()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const isAuthRoute = pathname.startsWith('/auth')
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !isAuthRoute) {
+      router.replace('/auth/login')
+    }
+  }, [isAuthenticated, isLoading, isAuthRoute, router])
 
   if (isAuthRoute) {
     return <main className="min-h-screen bg-background">{children}</main>
