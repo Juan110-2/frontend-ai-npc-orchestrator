@@ -217,7 +217,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {quickActions.map((a) => (
                 <Link key={a.title} href={a.href}>
-                  <div className="group flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50">
+                  <div className="group flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
                       <a.icon className="h-4 w-4 text-primary" />
                     </div>
