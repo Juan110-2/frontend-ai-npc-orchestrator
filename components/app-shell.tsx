@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <main
         className={cn(
-          'min-h-screen flex-1 bg-background pt-14 transition-all duration-200 md:pt-0',
+          'min-h-screen flex-1 min-w-0 overflow-x-hidden bg-background pt-14 transition-all duration-200 md:pt-0',
           isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
         )}
       >

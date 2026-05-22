@@ -36,6 +36,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   const pathname = usePathname();
   const { userEmail, userRole, logout } = useAuth();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   // Admin: métricas y usuarios solo visibles para administradores.
   const adminNavigation: Array<{ name: string; href: string; icon: React.ElementType }> = [];
@@ -49,13 +50,14 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     router.push('/auth/login');
   };
 
-  const renderNavItem = (item: { name: string; href: string; icon: React.ElementType }, compact: boolean) => {
+  const renderNavItem = (item: { name: string; href: string; icon: React.ElementType }, compact: boolean, onClose?: () => void) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
     return (
       <Link
         key={item.name}
         href={item.href}
         title={compact ? item.name : undefined}
+        onClick={onClose}
         className={cn(
           'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
           compact && 'justify-center px-2',
@@ -74,9 +76,9 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     ? navigation.filter((item) => item.href !== '/perfiles' && item.href !== '/escenarios')
     : navigation;
 
-  const navItems = (compact = false) => (
+  const navItems = (compact = false, onClose?: () => void) => (
     <nav className={cn('space-y-1 px-3 py-4', compact && 'px-2')}>
-      {filteredNavigation.map((item) => renderNavItem(item, compact))}
+      {filteredNavigation.map((item) => renderNavItem(item, compact, onClose))}
 
       {/* Sección Admin — solo visible para administradores */}
       {adminNavigation.length > 0 && (
@@ -86,7 +88,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
               Administración
             </p>
           )}
-          {adminNavigation.map((item) => renderNavItem(item, compact))}
+          {adminNavigation.map((item) => renderNavItem(item, compact, onClose))}
         </>
       )}
     </nav>
@@ -95,20 +97,22 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-sidebar px-3 text-sidebar-foreground md:hidden">
-        <Link href="/" className="text-base font-semibold tracking-tight">
+        <Link href="/" className="text-base font-semibold tracking-tight" onClick={() => setMobileOpen(false)}>
           Orquestador IA
         </Link>
-        <Sheet>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="text-sidebar-foreground hover:bg-sidebar-accent">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 border-r bg-sidebar text-sidebar-foreground">
-            <SheetHeader>
+          <SheetContent side="left" className="flex w-72 flex-col border-r bg-sidebar p-0 text-sidebar-foreground">
+            <SheetHeader className="border-b border-sidebar-border px-4 py-3">
               <SheetTitle className="text-sidebar-foreground">Menú</SheetTitle>
             </SheetHeader>
-            {navItems()}
+            <div className="flex-1 overflow-y-auto">
+              {navItems(false, () => setMobileOpen(false))}
+            </div>
             <div className="border-t border-sidebar-border p-3">
               <div className="mb-3">
                 <p className="truncate text-xs text-sidebar-foreground/80">{userEmail}</p>

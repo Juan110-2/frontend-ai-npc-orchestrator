@@ -795,7 +795,7 @@ function ChatPageContent() {
     <div className="h-[calc(100dvh-3.5rem)] w-full bg-gradient-to-b from-muted/35 via-background to-background p-2 sm:p-3 lg:h-screen lg:p-4">
       <div className="flex h-full min-w-0 flex-col gap-3">
         <header className="rounded-2xl border border-border/70 bg-background/90 px-3 py-3 shadow-sm backdrop-blur sm:px-4 lg:px-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <Link href="/sesiones">
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -966,14 +966,14 @@ function ChatPageContent() {
 
             <div className="border-t bg-background/95 p-3 sm:p-4">
               <div className="mx-auto w-full max-w-5xl space-y-3">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {QUICK_STARTERS.map((starter) => (
                     <Button
                       key={starter}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 rounded-full border border-border/80 bg-muted/40 px-3 text-xs"
+                      className="h-7 shrink-0 rounded-full border border-border/80 bg-muted/40 px-3 text-xs"
                       onClick={() => handleUseStarter(starter)}
                     >
                       {starter}

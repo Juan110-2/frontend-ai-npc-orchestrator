@@ -129,7 +129,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Link key={stat.title} href={stat.href}>
             <Card className="transition-all hover:border-border/80 hover:shadow-sm">
@@ -181,10 +181,10 @@ export default function DashboardPage() {
                 {sessions.slice(0, 4).map((s) => {
                   const isActive = !s.ended_at
                   return (
-                    <div key={s.id} className="flex items-center justify-between rounded-lg border bg-card p-3">
-                      <div className="flex min-w-0 items-center gap-3">
+                    <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         <div className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-lg',
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
                           isActive ? 'bg-success/10' : 'bg-muted'
                         )}>
                           <Play className={cn('h-4 w-4', isActive ? 'text-success' : 'text-muted-foreground')} />
@@ -194,7 +194,7 @@ export default function DashboardPage() {
                           <p className="truncate text-xs text-muted-foreground">{s.escenarioName}</p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3">
+                      <div className="flex shrink-0 items-center gap-3 ml-auto">
                         <SeverityGauge level={s.current_severity} size="sm" />
                         <Badge variant={isActive ? 'default' : 'secondary'}>
                           {isActive ? 'Activa' : 'Cerrada'}
@@ -241,7 +241,7 @@ export default function DashboardPage() {
           <CardDescription>Calculado sobre las sesiones registradas</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
             <Metric
               icon={<TrendingUp className="h-5 w-5 text-success" />}
               label="Sesiones cerradas"

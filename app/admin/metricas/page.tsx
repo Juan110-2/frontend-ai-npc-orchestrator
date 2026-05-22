@@ -164,11 +164,13 @@ export default function AdminMetricsPage() {
       )}
 
       <Tabs defaultValue="providers">
-        <TabsList>
-          <TabsTrigger value="providers"><BarChart3 className="mr-2 h-4 w-4" /> Por proveedor</TabsTrigger>
-          <TabsTrigger value="purposes"><ListTree className="mr-2 h-4 w-4" /> Por propósito</TabsTrigger>
-          <TabsTrigger value="calls"><ScrollText className="mr-2 h-4 w-4" /> Logs crudos</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-max">
+            <TabsTrigger value="providers"><BarChart3 className="mr-2 h-4 w-4" /> Por proveedor</TabsTrigger>
+            <TabsTrigger value="purposes"><ListTree className="mr-2 h-4 w-4" /> Por propósito</TabsTrigger>
+            <TabsTrigger value="calls"><ScrollText className="mr-2 h-4 w-4" /> Logs crudos</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ── Por proveedor ── */}
         <TabsContent value="providers" className="space-y-4">

@@ -112,6 +112,7 @@ export default function AdminUsuariosPage() {
 
       {/* Tabla */}
       <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
@@ -237,6 +238,7 @@ export default function AdminUsuariosPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
