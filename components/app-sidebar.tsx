@@ -44,8 +44,8 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     adminNavigation.push({ name: 'Usuarios', href: '/admin/usuarios', icon: Shield });
   }
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/auth/login');
   };
 

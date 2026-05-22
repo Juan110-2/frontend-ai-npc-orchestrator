@@ -58,27 +58,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const supabase = createClient()
 
-    // Primero intentar desde user_metadata (disponible en el JWT, sin llamada extra)
-    const metaRole = user.user_metadata?.role
-    if (metaRole === 'teacher' || metaRole === 'admin') {
-      setUserRole(metaRole)
-      setIsLoading(false)
-      return
-    }
-
-    // Si no está en metadata, consultar la tabla user_profiles
-    supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        const raw = data?.role
-        if (raw === 'teacher' || raw === 'admin') setUserRole(raw)
+    // user_profiles es la fuente de verdad (cambios de rol por admin).
+    // Si falla o no tiene rol, user_metadata actúa como fallback.
+    const resolveRole = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        console.log('[resolveRole] user.id:', user.id, '| data:', data, '| error:', error)
+        const dbRole = data?.role
+        if (dbRole === 'teacher' || dbRole === 'admin') {
+          setUserRole(dbRole)
+        } else {
+          const metaRole = user.user_metadata?.role
+          console.log('[resolveRole] dbRole no válido, usando metadata:', metaRole)
+          if (metaRole === 'teacher' || metaRole === 'admin') setUserRole(metaRole)
+          else setUserRole('student')
+        }
+      } catch (e) {
+        console.log('[resolveRole] catch:', e)
+        const metaRole = user.user_metadata?.role
+        if (metaRole === 'teacher' || metaRole === 'admin') setUserRole(metaRole)
         else setUserRole('student')
-      })
-      .catch(() => setUserRole('student'))
-      .finally(() => setIsLoading(false))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    void resolveRole()
   }, [user?.id])
 
   const login = useCallback(async (
