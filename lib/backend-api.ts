@@ -51,6 +51,7 @@ export type BackendSession = {
   current_severity: number
   started_at: string
   ended_at: string | null
+  last_ai_model?: string | null
 }
 
 export type BackendConversationMessage = {
@@ -593,6 +594,7 @@ export type AICallLogRow = {
   purpose: string
   call_mode: string
   status: string
+  category: string | null
   tokens_input: number | null
   tokens_output: number | null
   latency_ms: number | null
@@ -605,6 +607,13 @@ export type AICallLogRow = {
   created_at: string | null
 }
 
+export type PaginatedCalls = {
+  items: AICallLogRow[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export async function getMetricsSummary() {
   return request<MetricsSummary>('/admin/metrics/summary')
 }
@@ -614,12 +623,21 @@ export async function getProviderMetrics(purpose?: string) {
   return request<ProviderMetricRow[]>(`/admin/metrics/providers${qs}`)
 }
 
-export async function getMetricsCalls(opts?: { provider?: string; limit?: number }) {
+export async function getMetricsCalls(opts?: {
+  provider?: string
+  purpose?: string
+  session_id?: string
+  limit?: number
+  offset?: number
+}) {
   const params = new URLSearchParams()
   if (opts?.provider) params.set('provider', opts.provider)
-  if (opts?.limit) params.set('limit', String(opts.limit))
+  if (opts?.purpose) params.set('purpose', opts.purpose)
+  if (opts?.session_id) params.set('session_id', opts.session_id)
+  if (opts?.limit != null) params.set('limit', String(opts.limit))
+  if (opts?.offset != null) params.set('offset', String(opts.offset))
   const qs = params.toString() ? `?${params.toString()}` : ''
-  return request<AICallLogRow[]>(`/admin/metrics/calls${qs}`)
+  return request<PaginatedCalls>(`/admin/metrics/calls${qs}`)
 }
 
 

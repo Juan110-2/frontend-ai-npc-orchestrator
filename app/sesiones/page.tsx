@@ -612,7 +612,7 @@ function mapSession(
     escenarioId: session.scenario_id,
     escenarioName: scenario?.name || 'Escenario no encontrado',
     status: session.status,
-    modelName: metrics?.last_ai_model ?? undefined,
+    modelName: session.last_ai_model ?? metrics?.last_ai_model ?? undefined,
     state: {
       currentSeverity: Math.max(0, Math.min(5, session.current_severity)),
       activeRiskFlags: Array(riskCount).fill('risk'),
