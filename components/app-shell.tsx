@@ -13,11 +13,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const isAuthRoute = pathname.startsWith('/auth')
 
+  // Redirige al login si el usuario llega a una ruta protegida sin sesión activa
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isAuthRoute) {
       router.replace('/auth/login')
     }
-  }, [isAuthenticated, isLoading, isAuthRoute, router])
+  }, [isLoading, isAuthenticated, isAuthRoute, router])
 
   if (isAuthRoute) {
     return <main className="min-h-screen bg-background">{children}</main>

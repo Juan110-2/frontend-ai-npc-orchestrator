@@ -1,7 +1,9 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Session, User } from '@supabase/supabase-js'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
 type UserRole = 'student' | 'teacher' | 'admin'
@@ -26,6 +28,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
+  const router = useRouter()
+  const manualLogout = useRef(false)
 
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
@@ -40,12 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!s) setIsLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
       if (!s) {
         setUserRole('student')
         setIsLoading(false)
+        if (event === 'SIGNED_OUT' && !manualLogout.current) {
+          toast.error('Tu sesión expiró. Por favor inicia sesión de nuevo.')
+          router.replace('/auth/login')
+        }
+        manualLogout.current = false
       }
     })
 
@@ -177,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   const logout = useCallback(async () => {
+    manualLogout.current = true
     await supabase.auth.signOut()
   }, [supabase])
 
