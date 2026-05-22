@@ -84,22 +84,22 @@ export default function NuevaContrasenaPage() {
                 href="/auth/recuperar-credenciales"
                 className="text-sm text-[color:var(--app-panel-header-color)] underline hover:opacity-80"
               >
-                Volver a recuperar contrasena
+                Volver a recuperar contraseña
               </Link>
             </div>
           ) : (
             <>
               <div>
-                <h2 className="text-base font-semibold text-gray-800">Nueva contrasena</h2>
+                <h2 className="text-base font-semibold text-gray-800">Nueva contraseña</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Define una nueva contrasena para tu cuenta.
+                  Define una nueva contraseña para tu cuenta.
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                    Nueva contrasena
+                    Nueva contraseña
                   </Label>
                   <Input
                     id="password"
@@ -115,12 +115,12 @@ export default function NuevaContrasenaPage() {
 
                 <div>
                   <Label htmlFor="confirm" className="text-sm font-medium text-gray-700">
-                    Confirmar contrasena
+                    Confirmar contraseña
                   </Label>
                   <Input
                     id="confirm"
                     type="password"
-                    placeholder="Repite la contrasena"
+                    placeholder="Repite la contraseña"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     required
@@ -131,7 +131,7 @@ export default function NuevaContrasenaPage() {
 
                 <Button type="submit" disabled={isLoading} className="w-full btn-principal">
                   <KeyRound className="mr-2 h-4 w-4" />
-                  {isLoading ? 'Actualizando...' : 'Actualizar contrasena'}
+                  {isLoading ? 'Actualizando...' : 'Actualizar contraseña'}
                 </Button>
               </form>
             </>
@@ -143,7 +143,7 @@ export default function NuevaContrasenaPage() {
               className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Volver al inicio de sesion
+              Volver al inicio de sesión
             </Link>
           </div>
         </div>
