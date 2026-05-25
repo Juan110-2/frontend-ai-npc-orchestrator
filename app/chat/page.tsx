@@ -1031,7 +1031,7 @@ function ChatPageContent() {
             </div>
 
             {/* Mobile input */}
-            <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
+            <div className="border-t bg-background/95 px-2 py-1.5 pb-[max(6px,env(safe-area-inset-bottom))] sm:hidden">
               <div className="flex items-end gap-2">
                 <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
                   <Textarea
@@ -1047,7 +1047,7 @@ function ChatPageContent() {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                     disabled={sessionStatus !== "active"}
                     rows={1}
-                    className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-base leading-5 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 <Button
