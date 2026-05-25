@@ -924,7 +924,7 @@ function ChatPageContent() {
 
         <div className="flex min-h-0 flex-1 gap-3">
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-sm">
-            <ScrollArea className="min-h-0 flex-1 p-3 sm:p-4 lg:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
               <div className="mx-auto w-full max-w-5xl space-y-5 sm:space-y-6">
                 {messages.length === 0 && !isLoading && (
                   <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
@@ -939,45 +939,79 @@ function ChatPageContent() {
                     </p>
                   </div>
                 )}
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 sm:gap-4 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-                  >
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${message.role === "user"
-                        ? "bg-accent text-accent-foreground"
-                        : "bg-muted"
-                      }`}>
-                      {message.role === "user" ? (
-                        <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                      ) : (
-                        <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
-                      )}
-                    </div>
-                    <div className={`flex max-w-[94%] flex-col gap-2 md:max-w-[84%] xl:max-w-[72%] ${message.role === "user" ? "items-end" : ""}`}>
-                      <div className={`rounded-2xl px-4 py-3 ${message.role === "user"
-                          ? "bg-accent text-accent-foreground"
-                          : "border bg-background"
+                {/* ── Mobile messages ── */}
+                <div className="space-y-3 sm:hidden">
+                  {messages.map((message) => {
+                    const isUser = message.role === "user"
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex w-full items-end gap-2 ${isUser ? "flex-row-reverse" : ""}`}
+                      >
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                          isUser ? "bg-accent text-accent-foreground" : "bg-muted"
                         }`}>
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed sm:break-words [overflow-wrap:anywhere] sm:[overflow-wrap:normal]">{message.content}</p>
+                          {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
+                        </div>
+                        <div className={`flex min-w-0 flex-1 flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
+                          <div className={`max-w-[85%] rounded-2xl px-3 py-2 ${
+                            isUser ? "bg-accent text-accent-foreground" : "border bg-background"
+                          }`}>
+                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{message.content}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
+                              <Badge variant="destructive" className="gap-1 text-[10px]">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                Alerta
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(message.timestamp).toLocaleTimeString("es-ES", {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
-                        </span>
-                        {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
-                          <Badge variant="destructive" className="gap-1 text-xs">
-                            <AlertTriangle className="h-3 w-3" />
-                            Alerta
-                          </Badge>
-                        )}
+                    )
+                  })}
+                </div>
+
+                {/* ── Desktop messages ── */}
+                <div className="hidden space-y-4 sm:block">
+                  {messages.map((message) => {
+                    const isUser = message.role === "user"
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex w-full items-end gap-3 ${isUser ? "flex-row-reverse" : ""}`}
+                      >
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                          isUser ? "bg-accent text-accent-foreground" : "bg-muted"
+                        }`}>
+                          {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                        </div>
+                        <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
+                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                            isUser ? "bg-accent text-accent-foreground" : "border bg-background"
+                          }`}>
+                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{message.content}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
+                              <Badge variant="destructive" className="gap-1 text-xs">
+                                <AlertTriangle className="h-3 w-3" />
+                                Alerta
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    )
+                  })}
+                </div>
                 {isLoading && (
                   <div className="flex gap-3 sm:gap-4">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted sm:h-10 sm:w-10">
@@ -994,7 +1028,7 @@ function ChatPageContent() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Mobile input */}
             <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
