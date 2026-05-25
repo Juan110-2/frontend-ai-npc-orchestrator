@@ -30,11 +30,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
-      <main
+      {/* Spacer que reserva el ancho del sidebar fijo en el flujo flex */}
+      <div
+        aria-hidden
         className={cn(
-          'min-h-screen flex-1 min-w-0 overflow-x-hidden bg-background pt-14 transition-all duration-200 md:pt-0',
-          isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
+          'hidden shrink-0 transition-all duration-200 md:block',
+          isSidebarCollapsed ? 'w-20' : 'w-64'
         )}
+      />
+      <main
+        className="min-h-screen flex-1 min-w-0 overflow-x-hidden bg-background pt-14 transition-all duration-200 md:pt-0"
       >
         {children}
       </main>
