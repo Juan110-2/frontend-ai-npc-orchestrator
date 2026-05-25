@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -97,8 +98,11 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-sidebar px-3 text-sidebar-foreground md:hidden">
-        <Link href="/" className="text-base font-semibold tracking-tight" onClick={() => setMobileOpen(false)}>
-          Orquestador IA
+        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+          <div className="shrink-0 overflow-hidden rounded-md bg-transparent">
+            <Image src="/univalle-logo.png" alt="Universidad del Valle" width={30} height={30} className="object-cover [filter:saturate(0)_contrast(3)]" />
+          </div>
+          <span className="text-base font-semibold tracking-tight">Orquestador IA</span>
         </Link>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
@@ -141,8 +145,11 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
       >
         <div className={cn('flex h-16 items-center border-b border-sidebar-border px-4', isCollapsed && 'justify-center px-2')}>
           {!isCollapsed && (
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              Orquestador IA
+            <Link href="/" className="flex items-center gap-2">
+              <div className="shrink-0 overflow-hidden rounded-md bg-transparent">
+                <Image src="/univalle-logo.png" alt="Universidad del Valle" width={34} height={34} className="object-cover [filter:saturate(0)_contrast(3)]" />
+              </div>
+              <span className="text-lg font-semibold tracking-tight">Orquestador IA</span>
             </Link>
           )}
           <Button

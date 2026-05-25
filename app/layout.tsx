@@ -6,12 +6,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/lib/auth-context'
 import './globals.css'
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 });
 
-const geistMono = Geist_Mono({ 
+const geistMono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-geist-mono',
 });
@@ -19,23 +19,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'PsicoSim - Plataforma de Simulación Conversacional',
   description: 'Plataforma académica de simulación situacional para entrenamiento de comunicación y regulación emocional',
-  generator: 'v0.app',
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-light', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark',  media: '(prefers-color-scheme: dark)' },
     ],
-    apple: '/apple-icon.png',
   },
 }
 

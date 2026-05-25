@@ -1031,7 +1031,7 @@ function ChatPageContent() {
             </div>
 
             {/* Mobile input */}
-            <div className="border-t bg-background/95 px-2 py-1.5 pb-[max(6px,env(safe-area-inset-bottom))] sm:hidden">
+            <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
               <div className="flex items-end gap-2">
                 <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
                   <Textarea
