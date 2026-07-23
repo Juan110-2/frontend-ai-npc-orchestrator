@@ -16,6 +16,11 @@ import { toast } from 'sonner'
 import { deleteScenario, listScenarios, type BackendScenario } from '@/lib/backend-api'
 import { useAuth } from '@/lib/auth-context'
 
+function formatSeverityValue(value: number) {
+  const safeValue = Math.max(0, Math.min(5, value))
+  return `${safeValue.toFixed(1)}/5.0`
+}
+
 export default function EscenariosPage() {
   const router = useRouter()
   const { userRole, isLoading: authLoading } = useAuth()
@@ -112,26 +117,64 @@ export default function EscenariosPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {paginate(filtered, page).map((s) => (
-            <Card key={s.id}>
-              <CardContent className="flex flex-col p-4">
-                <div className="mb-2 flex items-start justify-between gap-3">
-                  <p className="font-medium leading-tight">{s.name}</p>
-                  <SeverityGauge level={s.severity} size="sm" showValue />
+          {paginate(filtered, page).map((s) => {
+            const riskFlags = Array.isArray(s.risk_flags) ? s.risk_flags : []
+
+            const riskShown = riskFlags.slice(0, 3)
+            const riskExtra = riskFlags.length - riskShown.length
+
+            return (
+            <Card key={s.id} className="flex flex-col">
+              <CardContent className="flex flex-1 flex-col p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 font-medium">{s.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {riskFlags.length > 0
+                        ? `${riskFlags.length} riesgo${riskFlags.length === 1 ? '' : 's'} visible${riskFlags.length === 1 ? '' : 's'}`
+                        : 'Sin banderas de riesgo'}
+                    </p>
+                  </div>
                 </div>
-                <p className="mb-3 line-clamp-3 text-sm text-muted-foreground">
+
+                <p className="mb-3 line-clamp-3 text-sm">
                   {s.context}
                 </p>
-                {s.risk_flags && s.risk_flags.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {s.risk_flags.slice(0, 3).map((f) => (
+
+                <div className="mb-3 flex items-center gap-1">
+                  <div className="flex min-w-0 flex-1 flex-wrap gap-1 overflow-hidden">
+                    {riskShown.length > 0 ? riskShown.map((f) => (
                       <Badge key={f} variant="outline" className="gap-1 text-xs">
                         <AlertTriangle className="h-3 w-3" /> {f}
                       </Badge>
-                    ))}
+                    )) : (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                        Sin alertas
+                      </span>
+                    )}
                   </div>
-                )}
-                <div className="mt-auto flex items-center justify-end gap-1 border-t pt-3">
+                  {riskExtra > 0 && (
+                    <span className="shrink-0 rounded border border-muted-foreground/30 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      +{riskExtra}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3">
+                  <div className="min-w-0 text-xs text-muted-foreground">
+                    <div className="inline-flex items-center gap-2">
+                      <span>Severidad</span>
+                      <SeverityGauge level={s.severity} size="sm" />
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        {formatSeverityValue(s.severity)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex w-full items-center justify-end sm:ml-auto sm:w-auto sm:gap-1">
                   <Button
                     size="sm" variant="ghost"
                     onClick={() => router.push(`/escenarios/${s.id}/edit`)}
@@ -146,10 +189,11 @@ export default function EscenariosPage() {
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       )}
       <Paginator total={filtered.length} page={page} onPageChange={setPage} />

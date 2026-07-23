@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, ArrowRight, Check, Plus, Search, Trash2, Loader2,
-  GraduationCap, HeartCrack, AlertTriangle, Users, Briefcase, MapPin, PencilLine,
+  GraduationCap, HeartCrack, AlertTriangle, Users, Briefcase, MapPin, PencilLine, Copy,
   User as UserIcon, UserCheck, UsersRound,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
-import { SeverityGauge } from '@/components/severity-gauge'
+import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +38,8 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  createProfile, createScenario, listScenarios, startSession, listStudents,
-  type BackendScenario, type BackendUserProfile,
+  createProfile, createScenario, getProfile, listScenarios, startSession, listStudents, updateScenario,
+  type BackendProfile, type BackendScenario, type BackendUserProfile,
 } from '@/lib/backend-api'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -64,6 +64,79 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 type AssignMode = 'self' | 'students'
 type SelfSessionMode = 'now' | 'later'
+
+type CloneState = {
+  sourceId: string
+  sourceName: string
+}
+
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return [value.trim()]
+  }
+  return []
+}
+
+function asBehaviorItems(value: unknown): { name: string; description: string }[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+    const record = item as Record<string, unknown>
+    const name = typeof record.name === 'string' ? record.name.trim() : ''
+    const description = typeof record.description === 'string' ? record.description.trim() : ''
+    if (!name && !description) return []
+    return [{ name, description }]
+  })
+}
+
+function buildClonedTemplate(profile: BackendProfile, scenario: BackendScenario | null): ProfileTemplate {
+  const traits = (profile.traits ?? {}) as Record<string, unknown>
+  const behavior = (profile.behavior ?? {}) as Record<string, unknown>
+  const scenarioDescription = typeof scenario?.constraints?.description === 'string'
+    ? scenario.constraints.description
+    : ''
+
+  return {
+    ...BLANK_TEMPLATE,
+    id: `clone-${profile.id}`,
+    label: `Clon de ${profile.name}`,
+    description: 'Formulario precargado desde un perfil existente.',
+    icon: 'User',
+    identity: {
+      name: `${profile.name} (copia)`,
+      identityName: typeof traits.identity_name === 'string' && traits.identity_name.trim()
+        ? `${traits.identity_name.trim()} (copia)`
+        : `${profile.name} (copia)`,
+      age: typeof traits.age === 'number' ? traits.age : 0,
+      occupation: typeof traits.occupation === 'string' ? traits.occupation : '',
+      description: profile.description ?? '',
+    },
+    psych: {
+      personality: asStringArray(traits.personality),
+      communicationStyle: asStringArray(traits.communication_style),
+    },
+    scenario: scenario ? {
+      name: `${scenario.name} (copia)`,
+      description: scenarioDescription,
+      context: scenario.context ?? '',
+      severity: Math.max(1, Math.min(5, scenario.severity || 3)),
+      riskFlags: asStringArray(scenario.risk_flags),
+    } : {
+      ...BLANK_TEMPLATE.scenario,
+    },
+    behavior: {
+      behaviorMin: typeof behavior.behavior_min === 'number' ? behavior.behavior_min : 0,
+      behaviorMax: typeof behavior.behavior_max === 'number'
+        ? behavior.behavior_max
+        : BLANK_TEMPLATE.behavior.behaviorMax,
+      triggers: asBehaviorItems(behavior.triggers),
+      regulators: asBehaviorItems(behavior.regulators),
+    },
+  }
+}
 
 function Chip({ children, onRemove }: { children: React.ReactNode; onRemove?: () => void }) {
   return (
@@ -122,6 +195,15 @@ export default function WizardPerfilPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [draftRiskFlag, setDraftRiskFlag] = useState('')
+  const [cloneLoading, setCloneLoading] = useState(false)
+  const [cloneState, setCloneState] = useState<CloneState | null>(null)
+  const [cloneFrom, setCloneFrom] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setCloneFrom(params.get('cloneFrom')?.trim() ?? '')
+  }, [])
 
   useEffect(() => {
     if (!authLoading && userRole === 'student') {
@@ -135,6 +217,7 @@ export default function WizardPerfilPage() {
   const [scenarioOptions, setScenarioOptions] = useState<BackendScenario[]>([])
   const [scenarioQuery, setScenarioQuery] = useState('')
   const [scenarioLoading, setScenarioLoading] = useState(false)
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
 
   // Estado de asignación
   const [assignMode, setAssignMode] = useState<AssignMode>('self')
@@ -152,6 +235,7 @@ export default function WizardPerfilPage() {
   // Navegación entre pasos
 
   const useTemplate = (tpl: ProfileTemplate) => {
+    setSelectedScenarioId(null)
     setForm(tpl)
     setStepIndex(1)
   }
@@ -192,11 +276,51 @@ export default function WizardPerfilPage() {
   const setScenario = (patch: Partial<ProfileTemplate['scenario']>) =>
     setForm((f) => ({ ...f, scenario: { ...f.scenario, ...patch } }))
   const resetScenario = () => {
+    setSelectedScenarioId(null)
     setScenario({ name: '', description: '', context: '', severity: 3, riskFlags: [] })
     setDraftRiskFlag('')
   }
   const setBehavior = (patch: Partial<ProfileTemplate['behavior']>) =>
     setForm((f) => ({ ...f, behavior: { ...f.behavior, ...patch } }))
+
+  useEffect(() => {
+    if (!cloneFrom) {
+      setCloneState(null)
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      try {
+        setCloneLoading(true)
+        const [profile, scenarios] = await Promise.all([
+          getProfile(cloneFrom),
+          listScenarios(),
+        ])
+        if (!active) return
+
+        const traits = (profile.traits ?? {}) as Record<string, unknown>
+        const caseName = typeof traits.case_name === 'string' ? traits.case_name : ''
+        const matchedScenario = scenarios.find((item) => item.name === caseName) ?? null
+
+        setForm(buildClonedTemplate(profile, matchedScenario))
+        setSelectedScenarioId(matchedScenario?.id ?? null)
+        setCloneState({ sourceId: profile.id, sourceName: profile.name })
+        setStepIndex(1)
+      } catch (err) {
+        if (!active) return
+        setCloneState(null)
+        toast.error('No se pudo cargar el perfil a clonar: ' + String(err))
+      } finally {
+        if (active) setCloneLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [cloneFrom])
 
   // Carga de escenarios existentes
 
@@ -217,6 +341,7 @@ export default function WizardPerfilPage() {
   const applyScenario = (item: BackendScenario) => {
     const description = typeof item.constraints?.description === 'string'
       ? item.constraints.description : ''
+    setSelectedScenarioId(item.id)
     setScenario({
       name: item.name,
       description,
@@ -307,17 +432,29 @@ export default function WizardPerfilPage() {
         return
       }
 
-      const scenario = await createScenario({
-        name: form.scenario.name,
-        context: form.scenario.context,
-        severity: form.scenario.severity,
-        risk_flags: form.scenario.riskFlags,
-        constraints: { description: form.scenario.description },
-      })
+      const scenario = selectedScenarioId
+        ? await updateScenario(selectedScenarioId, {
+          name: form.scenario.name,
+          context: form.scenario.context,
+          severity: form.scenario.severity,
+          risk_flags: form.scenario.riskFlags,
+          constraints: { description: form.scenario.description },
+        })
+        : await createScenario({
+          name: form.scenario.name,
+          context: form.scenario.context,
+          severity: form.scenario.severity,
+          risk_flags: form.scenario.riskFlags,
+          constraints: { description: form.scenario.description },
+        })
 
       if (assignMode === 'self') {
         const session = await startSession({ profile_id: profile.id, scenario_id: scenario.id })
-        toast.success('Perfil, escenario y sesión creados.')
+        toast.success(
+          selectedScenarioId
+            ? 'Perfil creado y vinculado al escenario existente.'
+            : 'Perfil, escenario y sesión creados.'
+        )
         if (selfSessionMode === 'now') {
           router.push(`/chat?sesion=${session.id}`)
         } else {
@@ -342,6 +479,28 @@ export default function WizardPerfilPage() {
   const stepId = ALL_STEPS[stepIndex].id
 
   if (authLoading || userRole === 'student') return null
+  if (cloneLoading) {
+    return (
+      <div className="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+        <Link
+          href="/perfiles"
+          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Volver a perfiles
+        </Link>
+
+        <Card>
+          <CardContent className="flex min-h-[240px] items-center justify-center">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Cargando datos del perfil clonado...
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
@@ -354,11 +513,30 @@ export default function WizardPerfilPage() {
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Nuevo perfil</h1>
+        <h1 className="text-2xl font-semibold">{cloneState ? 'Clonar perfil' : 'Nuevo perfil'}</h1>
         <p className="text-sm text-muted-foreground">
-          Crea un caso clínico simulado. Puedes empezar desde una plantilla o construirlo desde cero.
+          {cloneState
+            ? 'Este formulario fue precargado desde un perfil existente. Revisa cada campo antes de crear la nueva versión.'
+            : 'Crea un caso clínico simulado. Puedes empezar desde una plantilla o construirlo desde cero.'}
         </p>
       </div>
+
+      {cloneState && (
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-background p-2 text-primary shadow-sm">
+              <Copy className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Perfil clonado desde {cloneState.sourceName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Úsalo como base. Si todo está correcto puedes crearlo tal cual; si algo debe cambiar,
+                ajusta los campos antes de finalizar.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* wizard y demás componentes aquí... */}
       <div className="mb-6 overflow-x-auto pb-2">
@@ -390,8 +568,14 @@ export default function WizardPerfilPage() {
       {stepId === 'template' && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Empieza desde una plantilla</CardTitle>
-            <CardDescription>Te ahorra tiempo. Cualquier campo puede ajustarse después.</CardDescription>
+            <CardTitle className="text-base">
+              {cloneState ? 'Base actual del clon' : 'Empieza desde una plantilla'}
+            </CardTitle>
+            <CardDescription>
+              {cloneState
+                ? 'Este clon ya viene precargado. Si prefieres, puedes cambiar la base por una plantilla distinta o empezar desde cero.'
+                : 'Te ahorra tiempo. Cualquier campo puede ajustarse después.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -476,7 +660,7 @@ export default function WizardPerfilPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Perfil psicológico</CardTitle>
-            <CardDescription>Rasgos y forma de comunicarse del paciente.</CardDescription>
+            <CardDescription>Rasgos y forma de comunicarse del NPC.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
@@ -546,9 +730,21 @@ export default function WizardPerfilPage() {
               <div className="rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">{form.scenario.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{form.scenario.name}</p>
+                      {selectedScenarioId && (
+                        <Badge variant="secondary" className="text-[11px]">
+                          Escenario existente
+                        </Badge>
+                      )}
+                    </div>
                     {form.scenario.description && (
                       <p className="mt-1 text-sm text-muted-foreground">{form.scenario.description}</p>
+                    )}
+                    {selectedScenarioId && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Al guardar, este mismo escenario existente se mantendrá y se actualizará con los cambios que hagas aquí.
+                      </p>
                     )}
                   </div>
                   <Button type="button" variant="outline" size="sm" onClick={() => setScenarioCreateOpen(true)}>
@@ -725,19 +921,24 @@ export default function WizardPerfilPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Comportamiento conversacional</CardTitle>
-            <CardDescription>Cómo reacciona el paciente durante la conversación.</CardDescription>
+            <CardDescription>Cómo reacciona el NPC durante la conversación.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
-              <Label>Severidad máxima del paciente · {form.behavior.behaviorMax}</Label>
+              <Label>Severidad máxima del NPC · {formatSeverityNumber(form.behavior.behaviorMax)} / 5</Label>
               <p className="mb-3 text-xs text-muted-foreground">
-                El paciente siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
+                El NPC siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
               </p>
-              <Slider
-                value={[form.behavior.behaviorMax]}
-                min={1} max={5} step={1}
-                onValueChange={(v) => setBehavior({ behaviorMax: v[0] })}
-              />
+              <div className="max-w-sm">
+                <Slider
+                  value={[form.behavior.behaviorMax]}
+                  min={1} max={5} step={0.1}
+                  onValueChange={(v) => setBehavior({ behaviorMax: v[0] })}
+                />
+                <div className="pt-1">
+                  <SeverityGauge level={form.behavior.behaviorMax} size="sm" showLabel />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -869,7 +1070,7 @@ export default function WizardPerfilPage() {
                 )}
                 <p className="mt-2 text-sm text-muted-foreground">{form.scenario.context}</p>
                 <p className="mt-2 text-xs">
-                  Severidad inicial: <strong>{form.scenario.severity} / 5</strong> · Máximo permitido {form.behavior.behaviorMax}
+                  Severidad inicial: <strong>{formatSeverityNumber(form.scenario.severity)} / 5</strong> · Máximo permitido {formatSeverityNumber(form.behavior.behaviorMax)}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {form.scenario.riskFlags.length === 0 ? (
@@ -927,14 +1128,14 @@ export default function WizardPerfilPage() {
                 id="sctx" rows={3}
                 value={form.scenario.context}
                 onChange={(e) => setScenario({ context: e.target.value })}
-                placeholder="¿Qué está viviendo el paciente al iniciar la sesión?"
+                placeholder="¿Qué está viviendo el NPC al iniciar la sesión?"
               />
             </div>
             <div className="space-y-2">
-              <Label>Severidad inicial · {form.scenario.severity} / 5</Label>
+              <Label>Severidad inicial · {formatSeverityNumber(form.scenario.severity)} / 5</Label>
               <Slider
                 value={[form.scenario.severity]}
-                min={1} max={5} step={1}
+                min={1} max={5} step={0.1}
                 onValueChange={(v) => setScenario({ severity: v[0] })}
               />
               <div className="pt-1">

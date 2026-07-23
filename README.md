@@ -32,6 +32,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Flujo de perfiles
+
+- En `/perfiles` puedes crear, editar, eliminar o clonar perfiles.
+- La clonación no crea el perfil automáticamente: abre el wizard de creación con los datos precargados para que revises cada campo antes de guardar.
+- Si el perfil original tiene un escenario que el frontend puede identificar, ese escenario también se usa como base del clon.
+- Si eliges un escenario existente desde el wizard, se reutiliza ese mismo escenario. Si lo editas desde ahí, se actualiza ese escenario existente; solo se crea uno nuevo cuando usas `Crear nuevo`.
+- Los controles de severidad en formularios permiten valores de `1.0` a `5.0` en pasos de `0.1`. La UI muestra enteros sin decimal y usa un decimal solo cuando el valor lo necesita.
+
 ## Learn More
 
 To learn more, take a look at the following resources:

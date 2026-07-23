@@ -64,6 +64,16 @@ const statusConfig: Record<SessionStatus, { label: string; variant: 'default' | 
   terminated: { label: 'Terminada', variant: 'destructive', icon: Square },
 };
 
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return [value];
+  }
+  return [];
+}
+
 // ─── Dialog nueva sesión ─────────────────────────────────────────────────────
 
 type AssignMode = 'self' | 'students'
@@ -236,8 +246,8 @@ function NuevaSesionDialog({
                       const behavior = (p.behavior ?? {}) as Record<string, unknown>;
                       const bMin = behavior.behavior_min as number | undefined;
                       const bMax = behavior.behavior_max as number | undefined;
-                      const personality = (traits.personality as string[]) ?? [];
-                      const commStyle = (traits.communication_style as string[]) ?? [];
+                      const personality = asStringArray(traits.personality);
+                      const commStyle = asStringArray(traits.communication_style);
                       const isSelected = selectedProfile?.id === p.id;
 
                       const MAX_TAGS = 3;
@@ -583,12 +593,14 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
           </div>
         </div>
 
-        {sesion.modelName && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Modelo:</span>
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Modelo:</span>
+          {sesion.modelName ? (
             <Badge variant="secondary" className="text-xs">{sesion.modelName}</Badge>
-          </div>
-        )}
+          ) : (
+            <span>Aún la sesión no ha sido iniciada</span>
+          )}
+        </div>
 
         <div className="mt-4 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">{formatDate(sesion.startedAt)}</span>

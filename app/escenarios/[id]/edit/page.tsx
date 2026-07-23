@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Plus, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { SeverityGauge } from '@/components/severity-gauge'
+import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -147,13 +147,13 @@ export default function EditarEscenarioPage() {
               rows={4}
               value={context}
               onChange={(e) => setContext(e.target.value)}
-              placeholder="¿Qué está viviendo el paciente al iniciar la sesión?"
+              placeholder="¿Qué está viviendo el NPC al iniciar la sesión?"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Severidad inicial · {severity} / 5</Label>
-              <Slider value={[severity]} min={1} max={5} step={1} onValueChange={(v) => setSeverity(v[0])} />
+              <Label>Severidad inicial · {formatSeverityNumber(severity)} / 5</Label>
+              <Slider value={[severity]} min={1} max={5} step={0.1} onValueChange={(v) => setSeverity(v[0])} />
               <div className="pt-1">
                 <SeverityGauge level={severity} size="md" showLabel />
               </div>

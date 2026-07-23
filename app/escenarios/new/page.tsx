@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, AlertTriangle, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
-import { SeverityGauge } from '@/components/severity-gauge';
+import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import type { SeverityLevel } from '@/lib/types';
 import { createScenario } from '@/lib/backend-api';
 import { useAuth } from '@/lib/auth-context';
 
@@ -29,7 +28,7 @@ export default function NewEscenarioPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [situationContext, setSituationContext] = useState('');
-  const [initialSeverity, setInitialSeverity] = useState<SeverityLevel>(3);
+  const [initialSeverity, setInitialSeverity] = useState(3);
   const [riskFlags, setRiskFlags] = useState<string[]>([]);
   const [draftFlag, setDraftFlag] = useState('');
 
@@ -102,13 +101,13 @@ export default function NewEscenarioPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Severidad inicial · {initialSeverity} / 5</Label>
+                <Label>Severidad inicial · {formatSeverityNumber(initialSeverity)} / 5</Label>
                 <Slider
                   value={[initialSeverity]}
                   min={1}
                   max={5}
-                  step={1}
-                  onValueChange={(value) => setInitialSeverity(value[0] as SeverityLevel)}
+                  step={0.1}
+                  onValueChange={(value) => setInitialSeverity(value[0])}
                 />
                 <div className="pt-1">
                   <SeverityGauge level={initialSeverity} size="md" showLabel />

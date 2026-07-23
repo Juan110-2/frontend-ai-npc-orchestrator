@@ -27,7 +27,7 @@ const SEGMENT_COLORS = [
 ]
 
 const SIZE_MAP = {
-  sm: { bar: 'h-1.5 w-3', gap: 'gap-0.5', text: 'text-[10px]' },
+  sm: { bar: 'h-1.5 w-3', gap: 'gap-0.5', text: 'text-xs' },
   md: { bar: 'h-2.5 w-4', gap: 'gap-1',   text: 'text-xs' },
   lg: { bar: 'h-3 w-6',   gap: 'gap-1.5', text: 'text-sm' },
 }
@@ -39,6 +39,10 @@ const SEVERITY_LABELS: Record<number, string> = {
   3: 'Elevado',
   4: 'Alto',
   5: 'Crisis',
+}
+
+export function formatSeverityNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 export function SeverityGauge({
@@ -92,7 +96,7 @@ export function SeverityGauge({
       )}
       {showValue && (
         <span className={cn('ml-2 tabular-nums text-muted-foreground', s.text)}>
-          {safeLevel.toFixed(1)} / {max}
+          {formatSeverityNumber(safeLevel)} / {formatSeverityNumber(max)}
         </span>
       )}
     </div>

@@ -1032,8 +1032,8 @@ function ChatPageContent() {
 
             {/* Mobile input */}
             <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
-              <div className="flex items-end gap-2">
-                <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
                   <Textarea
                     ref={mobileTextareaRef}
                     placeholder=""
@@ -1063,8 +1063,8 @@ function ChatPageContent() {
 
             {/* Desktop input — barra delgada, elegante y distinguible */}
             <div className="hidden border-t bg-background/95 px-2 py-1.5 sm:block">
-              <div className="flex items-end gap-2">
-                <div className="flex flex-1 items-end rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center rounded-full border border-border/60 bg-muted/40 px-4 py-0.5">
                   <Textarea
                     ref={desktopTextareaRef}
                     placeholder="Escribe tu intervención…"

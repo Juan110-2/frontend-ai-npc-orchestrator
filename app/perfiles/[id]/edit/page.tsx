@@ -14,6 +14,7 @@ import { Slider } from '@/components/ui/slider'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { LoadingState } from '@/components/ui-states'
+import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import { useAuth } from '@/lib/auth-context'
 import { getProfile, updateProfile } from '@/lib/backend-api'
 
@@ -251,15 +252,20 @@ export default function EditarPerfilPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Comportamiento conversacional</CardTitle>
-            <CardDescription>Rango de severidad permitido y reacciones del perfil.</CardDescription>
+            <CardDescription>Rango de severidad permitido y reacciones del NPC.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
-              <Label>Severidad máxima del paciente · {behaviorMax}</Label>
+              <Label>Severidad máxima del NPC · {formatSeverityNumber(behaviorMax)} / 5</Label>
               <p className="mb-3 text-xs text-muted-foreground">
-                El paciente siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
+                El NPC siempre puede calmarse hasta 0. Este valor define hasta qué punto puede escalar.
               </p>
-              <Slider value={[behaviorMax]} min={1} max={5} step={1} onValueChange={(v) => setBehaviorMax(v[0])} />
+              <div className="max-w-sm">
+                <Slider value={[behaviorMax]} min={1} max={5} step={0.1} onValueChange={(v) => setBehaviorMax(v[0])} />
+                <div className="pt-1">
+                  <SeverityGauge level={behaviorMax} size="sm" showLabel />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -362,7 +368,7 @@ export default function EditarPerfilPage() {
                 ))}
               </div>
               <p className="text-xs">
-                Máximo permitido: <strong>{behaviorMax}</strong> · Disparadores {triggers.length} · Reguladores {regulators.length}
+                Máximo permitido: <strong>{formatSeverityNumber(behaviorMax)}</strong> · Disparadores {triggers.length} · Reguladores {regulators.length}
               </p>
             </div>
           </CardContent>

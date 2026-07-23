@@ -52,12 +52,7 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
             severity: Math.max(1, Math.min(5, item.severity)) as 1 | 2 | 3 | 4 | 5,
             active: true,
           })),
-          restrictions: Object.entries(item.constraints || {}).map(([key, value], index) => ({
-            id: `${item.id}-restriction-${index}`,
-            type: 'custom',
-            description: key,
-            value: String(value),
-          })),
+          restrictions: [],
           createdAt: new Date(item.created_at),
           updatedAt: new Date(item.created_at),
         };
@@ -145,25 +140,6 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Restricciones</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {escenario.restrictions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay restricciones configuradas.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {escenario.restrictions.map((item) => (
-                    <li key={item.id} className="rounded-lg border p-3 text-sm">
-                      <p className="font-medium">{item.description}</p>
-                      <p className="text-xs text-muted-foreground">Tipo: {item.type} | Valor: {item.value}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         <div className="space-y-6">

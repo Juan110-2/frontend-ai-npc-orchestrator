@@ -351,7 +351,7 @@ export default function AdminMetricsPage() {
                   <TableHeader>
                     <TableRow className="bg-muted/40">
                       <TableHead className="w-6" />
-                      <TableHead className="w-20">Hora</TableHead>
+                      <TableHead className="w-44">Fecha y hora</TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead>Propósito</TableHead>
                       <TableHead>Modo</TableHead>
@@ -388,8 +388,8 @@ export default function AdminMetricsPage() {
                                 ? (isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />)
                                 : <span className="w-3.5 inline-block" />}
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {c.created_at ? new Date(c.created_at).toLocaleTimeString() : "—"}
+                            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                              {formatDateTime(c.created_at)}
                             </TableCell>
                             <TableCell><Badge variant="secondary" className="text-xs">{c.provider}</Badge></TableCell>
                             <TableCell><Badge variant="outline" className="text-xs">{c.purpose}</Badge></TableCell>
@@ -495,6 +495,20 @@ function StatCard({ label, value, highlight }: { label: string; value: string | 
 function pct(num: number, den: number) {
   if (!den) return "—"
   return ((num / den) * 100).toFixed(1)
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—"
+
+  return new Date(value).toLocaleString("es-CO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
 }
 
 function formatErrorDetail(raw: string): string {

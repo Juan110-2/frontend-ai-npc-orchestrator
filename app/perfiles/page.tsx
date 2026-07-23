@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Plus, Play, Pencil, Trash2, Search, User as UserIcon, AlertTriangle,
+  Plus, Play, Pencil, Trash2, Search, User as UserIcon, AlertTriangle, Copy,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,21 @@ import {
 type CardData = {
   profile: BackendProfile
   scenario: BackendScenario | null
+}
+
+function formatSeverityValue(value: number) {
+  const safeValue = Math.max(0, Math.min(5, value))
+  return `${safeValue.toFixed(1)}/5.0`
+}
+
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return [value]
+  }
+  return []
 }
 
 export default function PerfilesPage() {
@@ -152,8 +167,8 @@ export default function PerfilesPage() {
             const traits = (profile.traits ?? {}) as Record<string, unknown>
             const age = traits.age as number | undefined
             const occupation = traits.occupation as string | undefined
-            const personality = (traits.personality as string[]) ?? []
-            const commStyle = (traits.communication_style as string[]) ?? []
+            const personality = asStringArray(traits.personality)
+            const commStyle = asStringArray(traits.communication_style)
             const MAX_TAGS = 3
             const persShown = personality.slice(0, MAX_TAGS)
             const persExtra = personality.length - persShown.length
@@ -254,6 +269,9 @@ export default function PerfilesPage() {
                           <div className="inline-flex items-center gap-2">
                             <span>Rango</span>
                             <SeverityRange min={behaviorMin} max={behaviorMax} size="sm" />
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {formatSeverityValue(behaviorMax)}
+                            </span>
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-amber-600">
@@ -263,6 +281,15 @@ export default function PerfilesPage() {
                       </div>
 
                       <div className="flex w-full items-center justify-between sm:ml-auto sm:w-auto sm:justify-end sm:gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => router.push(`/perfiles/new?cloneFrom=${profile.id}`)}
+                          title="Clonar"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+
                         <Button
                           size="sm"
                           variant="ghost"
