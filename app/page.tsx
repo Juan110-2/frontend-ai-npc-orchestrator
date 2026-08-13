@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import {
   listProfiles, listScenarios, listSessions, getMetricsSummary,
   type BackendProfile, type BackendScenario, type BackendSession, type MetricsSummary,
-} from '@/lib/backend-api'
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
 type RecentSession = BackendSession & {

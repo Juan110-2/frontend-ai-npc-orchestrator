@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import { toast } from 'sonner'
-import { getScenario, updateScenario } from '@/lib/backend-api'
+import { getScenario, updateScenario } from '@/lib/api'
 import { LoadingState } from '@/components/ui-states'
 import { useAuth } from '@/lib/auth-context'
 

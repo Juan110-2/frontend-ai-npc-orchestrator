@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { LoadingState } from '@/components/ui-states'
 import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import { useAuth } from '@/lib/auth-context'
-import { getProfile, updateProfile } from '@/lib/backend-api'
+import { getProfile, updateProfile } from '@/lib/api'
 
 type ChipsProps = {
   items: string[]

@@ -20,7 +20,7 @@ import {
   type MetricsSummary,
   type ProviderMetricRow,
   type AICallLogRow,
-} from "@/lib/backend-api"
+} from "@/lib/api"
 
 const CALLS_PAGE_SIZE = 15
 

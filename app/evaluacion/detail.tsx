@@ -26,7 +26,7 @@ import {
   type ActiveRubric,
   type BackendConversationMessage,
   type EvaluationResponse,
-} from "@/lib/backend-api"
+} from "@/lib/api"
 
 export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
   const router = useRouter()

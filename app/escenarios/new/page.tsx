@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { createScenario } from '@/lib/backend-api';
+import { createScenario } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
 export default function NewEscenarioPage() {

@@ -53,7 +53,7 @@ import {
   type BackendProfile,
   type BackendScenario,
   type BackendSession,
-} from "@/lib/backend-api"
+} from "@/lib/api"
 import { toast } from "sonner"
 
 

@@ -33,7 +33,7 @@ import {
   exportConversationJSON, startSession, listStudents, adminListUsers,
   type BackendProfile, type BackendScenario, type BackendSession, type BackendUserProfile,
   type EvaluationListItem, type TimeSource,
-} from '@/lib/backend-api';
+} from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { Paginator, PAGE_SIZE } from '@/components/paginator';

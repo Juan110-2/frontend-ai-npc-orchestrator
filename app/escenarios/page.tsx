@@ -13,7 +13,7 @@ import { SeverityGauge } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
-import { deleteScenario, listScenarios, type BackendScenario } from '@/lib/backend-api'
+import { deleteScenario, listScenarios, type BackendScenario } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
 function formatSeverityValue(value: number) {

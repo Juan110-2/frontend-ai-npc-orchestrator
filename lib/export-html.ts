@@ -1,6 +1,6 @@
 import {
   getSession, getConversationHistory, getProfile, getScenario, listStudents,
-} from '@/lib/backend-api'
+} from '@/lib/api'
 
 function sevColor(s: number | null | undefined): string {
   if (s == null) return '#94a3b8'

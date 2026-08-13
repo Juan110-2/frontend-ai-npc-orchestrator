@@ -18,7 +18,7 @@ import { useAuth } from '@/lib/auth-context'
 import {
   deleteProfile, listProfiles, listScenarios, startSession,
   type BackendProfile, type BackendScenario,
-} from '@/lib/backend-api'
+} from '@/lib/api'
 
 type CardData = {
   profile: BackendProfile

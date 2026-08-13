@@ -40,7 +40,7 @@ import { cn } from '@/lib/utils'
 import {
   createProfile, createScenario, getProfile, listScenarios, startSession, listStudents, updateScenario,
   type BackendProfile, type BackendScenario, type BackendUserProfile,
-} from '@/lib/backend-api'
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import {
   PROFILE_TEMPLATES,
@@ -234,7 +234,7 @@ export default function WizardPerfilPage() {
 
   // Navegación entre pasos
 
-  const useTemplate = (tpl: ProfileTemplate) => {
+  const applyTemplate = (tpl: ProfileTemplate) => {
     setSelectedScenarioId(null)
     setForm(tpl)
     setStepIndex(1)
@@ -585,7 +585,7 @@ export default function WizardPerfilPage() {
                   <button
                     key={tpl.id}
                     type="button"
-                    onClick={() => useTemplate(tpl)}
+                    onClick={() => applyTemplate(tpl)}
                     className="rounded-lg border bg-background p-4 text-left transition hover:border-primary hover:bg-primary/5"
                   >
                     <Icon className="h-5 w-5 text-primary" />
@@ -596,7 +596,7 @@ export default function WizardPerfilPage() {
               })}
               <button
                 type="button"
-                onClick={() => useTemplate(BLANK_TEMPLATE)}
+                onClick={() => applyTemplate(BLANK_TEMPLATE)}
                 className="rounded-lg border border-dashed bg-background p-4 text-left text-muted-foreground transition hover:border-primary hover:text-foreground"
               >
                 <PencilLine className="h-5 w-5" />

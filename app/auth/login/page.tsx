@@ -86,7 +86,7 @@ export default function LoginPage() {
             Si tu correo es institucional{' '}
             <span className="font-semibold">(correounivalle.edu.co)</span> puedes{' '}
             <span className="font-semibold">acceder directamente</span> por medio del botón{' '}
-            <span className="font-semibold">"Iniciar sesión con Google"</span>.<br />
+            <span className="font-semibold">&quot;Iniciar sesión con Google&quot;</span>.<br />
             En caso contrario, ingresa tu correo y te enviaremos{' '}
             <span className="font-semibold">un enlace directo para acceder al sistema</span>.
           </div>

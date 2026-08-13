@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SeverityBadge } from '@/components/severity-badge';
 import { ErrorState, LoadingState } from '@/components/ui-states';
-import { getScenario } from '@/lib/backend-api';
+import { getScenario } from '@/lib/api';
 import type { Escenario } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 

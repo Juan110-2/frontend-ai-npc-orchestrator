@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth-context'
-import { adminListUsers, adminUpdateUser, type BackendUserProfile } from '@/lib/backend-api'
+import { adminListUsers, adminUpdateUser, type BackendUserProfile } from '@/lib/api'
 import { toast } from 'sonner'
 
 const ROLE_LABELS: Record<string, string> = {
