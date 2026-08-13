@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, Search, AlertTriangle, FileText } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, AlertTriangle, FileText, Copy } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -175,6 +175,13 @@ export default function EscenariosPage() {
                   </div>
 
                   <div className="flex w-full items-center justify-end sm:ml-auto sm:w-auto sm:gap-1">
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => router.push(`/escenarios/new?cloneFrom=${s.id}`)}
+                    title="Clonar"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                   <Button
                     size="sm" variant="ghost"
                     onClick={() => router.push(`/escenarios/${s.id}/edit`)}

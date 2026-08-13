@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, AlertTriangle, Plus } from 'lucide-react';
+import { ArrowLeft, Save, AlertTriangle, Plus, Copy } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { createScenario } from '@/lib/api';
+import { createScenario, getScenario } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
 export default function NewEscenarioPage() {
@@ -31,6 +31,54 @@ export default function NewEscenarioPage() {
   const [initialSeverity, setInitialSeverity] = useState(3);
   const [riskFlags, setRiskFlags] = useState<string[]>([]);
   const [draftFlag, setDraftFlag] = useState('');
+
+  const [cloneFrom, setCloneFrom] = useState('');
+  const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneSourceName, setCloneSourceName] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setCloneFrom(params.get('cloneFrom')?.trim() ?? '');
+  }, []);
+
+  useEffect(() => {
+    if (!cloneFrom) {
+      setCloneSourceName('');
+      return;
+    }
+
+    let active = true;
+
+    void (async () => {
+      try {
+        setCloneLoading(true);
+        const scenario = await getScenario(cloneFrom);
+        if (!active) return;
+
+        const sourceDescription = typeof scenario.constraints?.description === 'string'
+          ? scenario.constraints.description
+          : '';
+
+        setName(`${scenario.name} (copia)`);
+        setDescription(sourceDescription);
+        setSituationContext(scenario.context ?? '');
+        setInitialSeverity(Math.max(1, Math.min(5, scenario.severity || 3)));
+        setRiskFlags(Array.isArray(scenario.risk_flags) ? scenario.risk_flags : []);
+        setCloneSourceName(scenario.name);
+      } catch (err) {
+        if (!active) return;
+        setCloneSourceName('');
+        toast.error('No se pudo cargar el escenario a clonar: ' + String(err));
+      } finally {
+        if (active) setCloneLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [cloneFrom]);
 
   const addFlag = () => {
     const v = draftFlag.trim();
@@ -75,7 +123,33 @@ export default function NewEscenarioPage() {
         Volver a escenarios
       </Link>
 
-      <PageHeader title="Nuevo Escenario" description="Define un contexto situacional para usar en simulaciones." />
+      <PageHeader
+        title={cloneSourceName ? 'Clonar escenario' : 'Nuevo Escenario'}
+        description={cloneSourceName
+          ? 'Este formulario fue precargado desde un escenario existente. Revisa cada campo antes de crearlo.'
+          : 'Define un contexto situacional para usar en simulaciones.'}
+      />
+
+      {cloneSourceName && (
+        <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-background p-2 text-primary shadow-sm">
+              <Copy className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Escenario clonado desde {cloneSourceName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Úsalo como base. Si todo está correcto puedes crearlo tal cual; si algo debe cambiar,
+                ajusta los campos antes de finalizar.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cloneLoading && (
+        <p className="mt-6 text-sm text-muted-foreground">Cargando escenario a clonar…</p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-6">
         <Card>
@@ -158,9 +232,9 @@ export default function NewEscenarioPage() {
           <Button type="button" variant="outline" onClick={() => router.push('/escenarios')}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || cloneLoading}>
             <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Guardando...' : 'Crear escenario'}
+            {isSaving ? 'Guardando...' : cloneSourceName ? 'Crear clon' : 'Crear escenario'}
           </Button>
         </div>
       </form>
