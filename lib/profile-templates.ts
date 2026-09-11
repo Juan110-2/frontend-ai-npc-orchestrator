@@ -1,5 +1,5 @@
 /**
- * Plantillas de inicio rápido para crear un paciente simulado.
+ * Plantillas de inicio rápido para crear un NPC simulado.
  * Cada plantilla precarga los 5 pasos del wizard. El docente solo ajusta
  * nombre y detalles puntuales.
  */

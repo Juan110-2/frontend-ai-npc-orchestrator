@@ -7,8 +7,7 @@ import { ArrowLeft, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { SeverityBadge } from '@/components/severity-badge';
+import { SeverityGauge } from '@/components/severity-gauge';
 import { ErrorState, LoadingState } from '@/components/ui-states';
 import { getScenario } from '@/lib/api';
 import type { Escenario } from '@/lib/types';
@@ -119,24 +118,27 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Banderas de riesgo</CardTitle>
-              <CardDescription>Se activan según la evolución de la interacción.</CardDescription>
+              <CardDescription>
+                Rasgos permanentes del personaje: se agregan como información de contexto en su
+                prompt ("Indicadores presentes: ..."), no son un estado que cambie durante la
+                conversación.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {escenario.riskFlags.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Este escenario no tiene banderas de riesgo configuradas.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
                   {escenario.riskFlags.map((flag) => (
-                    <div key={flag.id} className="rounded-lg border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium">{flag.description}</p>
-                        <Badge variant={flag.active ? 'destructive' : 'outline'}>{flag.active ? 'Activa' : 'Inactiva'}</Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Tipo: {flag.type} | Severidad: {flag.severity}</p>
-                    </div>
+                    <Badge key={flag.id} variant="outline">{flag.description}</Badge>
                   ))}
                 </div>
               )}
+              <p className="mt-3 text-xs text-muted-foreground">
+                Mejora futura propuesta: usar estas banderas también para activar el sistema de
+                alertas de riesgo durante la conversación, en vez de ser solo información de
+                contexto para el personaje.
+              </p>
             </CardContent>
           </Card>
 
@@ -151,7 +153,7 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
               <div>
                 <p className="text-xs text-muted-foreground">Severidad inicial</p>
                 <div className="mt-1">
-                  <SeverityBadge level={escenario.initialSeverity} />
+                  <SeverityGauge level={escenario.initialSeverity} size="sm" showLabel showValue />
                 </div>
               </div>
 
@@ -159,16 +161,8 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
                 <p className="text-xs text-muted-foreground">Última actualización</p>
                 <p className="text-sm">{formatDate(escenario.updatedAt)}</p>
               </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Tiempo límite</p>
-              </div>
             </CardContent>
           </Card>
-
-          <Button className="w-full" onClick={() => router.push(`/chat?escenario=${escenario.id}`)}>
-            Usar en sesión
-          </Button>
         </div>
       </div>
     </div>

@@ -235,7 +235,7 @@ export const mockEscenarios: Escenario[] = [
     situationContext: 'La persona llega visiblemente alterada despues de un evento estresante significativo (perdida de empleo, ruptura, conflicto grave).',
     initialSeverity: 4,
     riskFlags: [
-      { id: 'rf-1', type: 'crisis', description: 'Paciente en estado de crisis aguda', severity: 4, active: true },
+      { id: 'rf-1', type: 'crisis', description: 'NPC en estado de crisis aguda', severity: 4, active: true },
     ],
     restrictions: [
       { id: 'res-1', type: 'intervention', description: 'Priorizar estabilización', value: 'No profundizar en trauma' },
@@ -260,7 +260,7 @@ export const mockEscenarios: Escenario[] = [
     id: 'esc-4',
     name: 'Evaluación de Riesgo',
     description: 'Escenario para practicar evaluación y manejo de riesgo suicida',
-    situationContext: 'El paciente menciona indirectamente pensamientos de desesperanza y "no querer seguir así". Se requiere evaluación cuidadosa de riesgo.',
+    situationContext: 'El NPC menciona indirectamente pensamientos de desesperanza y "no querer seguir así". Se requiere evaluación cuidadosa de riesgo.',
     initialSeverity: 4,
     riskFlags: [
       { id: 'rf-1', type: 'self-harm', description: 'Posible ideación suicida pasiva', severity: 4, active: true },

@@ -662,9 +662,9 @@ function ChatPageContent() {
             })
           }
           if (kind === "success") {
-            toast.success("Sesión completada con éxito. El paciente se siente mejor.")
+            toast.success("Sesión completada con éxito. El NPC se siente mejor.")
           } else if (kind === "crisis") {
-            toast.error("Sesión terminada por crisis emocional del paciente.")
+            toast.error("Sesión terminada por crisis emocional del NPC.")
           } else if (kind === "inappropriate") {
             toast.warning("Sesión terminada por conducta inadecuada.")
           } else {

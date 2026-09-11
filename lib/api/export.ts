@@ -79,7 +79,7 @@ export async function exportConversationJSON(
   return { filename, content: JSON.stringify(payload, null, 2) }
 }
 
-/** Devuelve { provider, model } del último mensaje del paciente, útil para listados. */
+/** Devuelve { provider, model } del último mensaje del NPC, útil para listados. */
 export async function getSessionModelInfo(
   sessionId: string,
 ): Promise<{ provider: string | null; model: string | null }> {

@@ -172,7 +172,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricBox label="Turnos del estudiante" value={metrics.turns_trainee ?? "—"} icon={<MessageSquare className="h-4 w-4" />} />
-            <MetricBox label="Turnos del paciente" value={metrics.turns_patient ?? "—"} icon={<MessageSquare className="h-4 w-4" />} />
+            <MetricBox label="Turnos del NPC" value={metrics.turns_patient ?? "—"} icon={<MessageSquare className="h-4 w-4" />} />
             <MetricBox
               label="Duración"
               value={
@@ -195,7 +195,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         <CardHeader>
           <CardTitle>Transcripción de la sesión</CardTitle>
           <CardDescription>
-            Todo lo que conversaron el estudiante y el paciente simulado.
+            Todo lo que conversaron el estudiante y el NPC simulado.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -229,7 +229,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
                       >
                         <div className="flex items-baseline justify-between gap-3 mb-1">
                           <p className="text-xs font-semibold">
-                            {isStudent ? "Estudiante" : "Paciente"}
+                            {isStudent ? "Estudiante" : "NPC"}
                           </p>
                           <span className="text-[10px] text-muted-foreground font-mono">
                             sev: {typeof m.severity === 'number' ? m.severity.toFixed(1) : m.severity}

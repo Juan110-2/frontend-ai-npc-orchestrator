@@ -55,7 +55,7 @@ export async function buildConversationHTML(sessionId: string): Promise<string> 
     const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sevColor(sev)};margin-right:6px;flex-shrink:0;margin-top:5px"></span>`
     const meta = isStudent
       ? `<span style="font-size:11px;color:#64748b">Turno ${m.turnIndex}</span>`
-      : `<span style="font-size:11px;color:#64748b">Paciente · sev ${sev != null ? sev.toFixed(1) : '—'}</span>`
+      : `<span style="font-size:11px;color:#64748b">NPC · sev ${sev != null ? sev.toFixed(1) : '—'}</span>`
     const bubble = isStudent
       ? `<div style="background:#3b82f6;color:#fff;padding:12px 16px;border-radius:16px 16px 4px 16px;max-width:68%;line-height:1.55;font-size:14px;white-space:pre-wrap">${escHtml(m.content)}</div>`
       : `<div style="background:#f1f5f9;color:#1e293b;padding:12px 16px;border-radius:16px 16px 16px 4px;max-width:68%;line-height:1.55;font-size:14px;white-space:pre-wrap">${escHtml(m.content)}</div>`
@@ -73,7 +73,7 @@ export async function buildConversationHTML(sessionId: string): Promise<string> 
 
   const beh = profile?.behavior as Record<string, unknown> | null | undefined
   const behaviorStr = beh
-    ? `Rango de severidad: ${beh.behavior_min ?? '?'} – ${beh.behavior_max ?? '?'}`
+    ? `Rango de severidad: ${Math.max(1, Number(beh.behavior_min ?? 1))} – ${beh.behavior_max ?? '?'}`
     : null
 
   return `<!DOCTYPE html>
@@ -82,7 +82,7 @@ export async function buildConversationHTML(sessionId: string): Promise<string> 
 <meta charset="UTF-8"/>
 <title>Sesión ${session.id.slice(0, 8)}</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;padding:32px 24px}
   @media print{
     body{background:#fff;padding:0}
@@ -129,6 +129,7 @@ export async function buildConversationHTML(sessionId: string): Promise<string> 
   ${metaCell('Sev. final', fmtSev(session.current_severity))}
   ${assignedTo ? metaCell('Estudiante', assignedTo.full_name ?? assignedTo.email) : ''}
   ${behaviorStr ? metaCell('Comportamiento', behaviorStr) : ''}
+  ${profile?.description ? metaCell('Descripción del personaje', profile.description, true) : ''}
   ${scenario?.context ? metaCell('Situación', scenario.context, true) : ''}
 </div>
 

@@ -70,11 +70,12 @@ export default function DashboardPage() {
   const activeSessions = sessions.filter((s) => !s.ended_at).length
   const completedSessions = sessions.filter((s) => !!s.ended_at).length
   const avgDurationMin = (() => {
+    // Tiempo de práctica real (accumulated_seconds), no reloj de pared
+    // (started_at → ended_at), que puede inflarse muchísimo con sesiones
+    // dejadas abiertas sin cerrar.
     const closed = sessions.filter((s) => !!s.ended_at)
     if (closed.length === 0) return null
-    const total = closed.reduce((acc, s) => {
-      return acc + (new Date(s.ended_at!).getTime() - new Date(s.started_at).getTime()) / 60000
-    }, 0)
+    const total = closed.reduce((acc, s) => acc + (s.accumulated_seconds ?? 0) / 60, 0)
     return Math.round(total / closed.length)
   })()
 

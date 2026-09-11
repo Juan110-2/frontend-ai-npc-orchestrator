@@ -293,7 +293,7 @@ function EvaluationCard({ ev, onOpen }: { ev: EvaluationListItem; onOpen: () => 
       <CardContent className="p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="font-medium">{ev.patient_name ?? "Paciente"}</p>
+            <p className="font-medium">{ev.patient_name ?? "NPC"}</p>
             {ev.student_name && (
               <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                 <UserCheck className="h-3 w-3 shrink-0" />
