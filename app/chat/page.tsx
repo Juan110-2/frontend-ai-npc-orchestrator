@@ -263,7 +263,7 @@ function SessionContextPanel({
 
 function ChatPageContent() {
   const router = useRouter()
-  const { userRole } = useAuth()
+  const { userRole, isLoading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("sesion") || searchParams.get("session")
   const perfilParam = searchParams.get("perfil")
@@ -302,6 +302,8 @@ function ChatPageContent() {
   const [finalizeOpen, setFinalizeOpen] = useState(false)
   const [statusSheetOpen, setStatusSheetOpen] = useState(false)
   const isAdmin = userRole === "admin"
+  // Los estudiantes no crean sesiones: solo chatean en las que les asignaron
+  const isStudent = userRole === "student"
   const effectiveTeacherView = teacherViewOverride ?? (userRole === "teacher" || userRole === "admin")
 
   useEffect(() => {
@@ -593,7 +595,7 @@ function ChatPageContent() {
 
     let sessionForMessage = activeSession
 
-    if (!sessionForMessage && perfil && escenario) {
+    if (!sessionForMessage && perfil && escenario && !isStudent) {
       try {
         sessionForMessage = await startSession({
           profile_id: perfil.id,
@@ -729,7 +731,7 @@ function ChatPageContent() {
   }
 
   const handleStartFromSetup = () => {
-    if (!selectedPerfilId || !selectedEscenarioId) return
+    if (isStudent || !selectedPerfilId || !selectedEscenarioId) return
 
     void (async () => {
       try {
@@ -746,6 +748,35 @@ function ChatPageContent() {
 
   if (isBootstrapping) {
     return <PageLoader message="Cargando sesión..." />
+  }
+
+  if (authLoading) {
+    return <PageLoader message="Cargando sesión..." />
+  }
+
+  if (isStudent && (!canStartChat || setupMode)) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <PageHeader
+          title="Chat"
+          description="Aquí realizas las sesiones que tu profesor te asigna."
+        />
+
+        <Card className="mt-6 max-w-2xl">
+          <CardHeader>
+            <CardTitle>No tienes una sesión seleccionada</CardTitle>
+            <CardDescription>
+              Abre una de tus sesiones asignadas desde la lista de sesiones.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push('/sesiones')}>
+              Ver mis sesiones
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!canStartChat || setupMode) {

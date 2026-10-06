@@ -666,7 +666,7 @@ function mapSession(
 }
 
 export default function SesionesPage() {
-  const { userRole, user } = useAuth();
+  const { userRole, user, isLoading: authLoading } = useAuth();
   const currentUserId = user?.id ?? null;
 
   // ── datos de referencia (cargados una vez) ─────────────────────────────────
@@ -836,6 +836,8 @@ export default function SesionesPage() {
   const currentIsLoading = isMine ? myIsLoading : isAll ? allIsLoading : assignedIsLoading;
   const isTeacherOrAdmin = userRole === 'teacher' || userRole === 'admin';
   const isAdmin = userRole === 'admin';
+  // Los estudiantes no crean sesiones: solo realizan las que les asignan
+  const canCreateSession = !authLoading && isTeacherOrAdmin;
 
   // Build assigner/assignee option lists from currently loaded sessions
   const uniqueAssigners = isAll ? (() => {
@@ -877,7 +879,9 @@ export default function SesionesPage() {
         title="Sesiones"
         description="Historial de sesiones de simulación y chats activos"
       >
-        <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
+        {canCreateSession && (
+          <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
+        )}
       </PageHeader>
 
       {/* Stats */}
@@ -1035,10 +1039,16 @@ export default function SesionesPage() {
               <MessageSquare className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="font-medium">No hay sesiones</p>
-            <p className="mt-1 text-sm text-muted-foreground">Inicia una nueva sesión para comenzar a simular.</p>
-            <div className="mt-4">
-              <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
-            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isTeacherOrAdmin
+                ? 'Inicia una nueva sesión para comenzar a simular.'
+                : 'Tu profesor te asignará una sesión.'}
+            </p>
+            {canCreateSession && (
+              <div className="mt-4">
+                <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : filteredSessions.length === 0 ? (
