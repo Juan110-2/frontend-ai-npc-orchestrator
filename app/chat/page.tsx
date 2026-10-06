@@ -529,7 +529,9 @@ function ChatPageContent() {
       keepalive: true,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ delta_seconds: delta }),
-    }).catch(() => { void flushDelta(delta, sid) })  // fallback si el envío falla
+    })
+      .then((res) => { if (!res.ok) throw new Error(`Error ${res.status}`) })
+      .catch(() => { void flushDelta(delta, sid) })  // fallback si el envío falla o el token caducó
   }, [stopSegment, flushDelta])
 
   // ── Timer: visibilitychange ───────────────────────────────────────────────
