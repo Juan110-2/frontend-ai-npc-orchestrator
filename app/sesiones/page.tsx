@@ -636,7 +636,10 @@ function mapSession(
   const startedAt = new Date(session.started_at);
   const endedAt = session.ended_at ? new Date(session.ended_at) : undefined;
   const metrics = evalMap.get(session.id)?.automatic_metrics;
-  const riskCount = metrics?.risk_alerts_detected ?? 0;
+  // Suma alertas de incitacion (risk) y revelaciones reales surgidas de una
+  // pregunta de cuidado (risk_check) -- ambas ameritan que el profesor revise
+  // la sesion, aunque solo la primera sea una senal negativa sobre el estudiante.
+  const riskCount = (metrics?.risk_alerts_detected ?? 0) + (metrics?.risk_check_alerts_detected ?? 0);
   return {
     id: session.id,
     perfilId: session.profile_id,

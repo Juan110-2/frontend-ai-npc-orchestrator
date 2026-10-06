@@ -29,6 +29,7 @@ export type AutomaticMetrics = {
   severity_peak?: number | null
   severity_final?: number | null
   risk_alerts_detected?: number
+  risk_check_alerts_detected?: number
   mean_patient_latency_ms?: number | null
   classifier_calls_by_status?: Record<string, number>
 }
@@ -112,6 +113,7 @@ export type EvaluationListItem = {
     turns_patient?: number
     turns_total?: number
     risk_alerts_detected?: number
+    risk_check_alerts_detected?: number
     severity_peak?: number
     severity_final?: number
     duration_minutes?: number

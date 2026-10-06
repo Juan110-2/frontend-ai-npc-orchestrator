@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   ArrowLeft, CheckCircle, Clock, MessageSquare, Save, Send, AlertTriangle,
-  User, Bot,
+  User, Bot, ShieldAlert,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
@@ -185,6 +185,11 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
             <MetricBox label="Pico de severidad" value={metrics.severity_peak != null ? Number(metrics.severity_peak).toFixed(1) : "—"} />
             <MetricBox label="Severidad final" value={metrics.severity_final != null ? Number(metrics.severity_final).toFixed(1) : "—"} />
             <MetricBox label="Alertas de riesgo" value={metrics.risk_alerts_detected ?? 0} icon={<AlertTriangle className="h-4 w-4 text-destructive" />} />
+            <MetricBox
+              label="Revelaciones detectadas"
+              value={metrics.risk_check_alerts_detected ?? 0}
+              icon={<ShieldAlert className="h-4 w-4 text-amber-500" />}
+            />
             <MetricBox label="Puntaje global" value={overall != null ? `${overall} / 5` : "—"} />
           </div>
         </CardContent>
