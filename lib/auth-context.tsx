@@ -67,30 +67,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const supabase = createClient()
 
-    // user_profiles es la fuente de verdad (cambios de rol por admin).
-    // Si falla o no tiene rol, user_metadata actúa como fallback.
+    // user_profiles es la única fuente de verdad del rol (lo cambia un admin).
+    // user_metadata lo puede editar el propio usuario, así que no se usa.
     const resolveRole = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('user_profiles')
           .select('role')
           .eq('id', user.id)
           .single()
-        console.log('[resolveRole] user.id:', user.id, '| data:', data, '| error:', error)
         const dbRole = data?.role
-        if (dbRole === 'teacher' || dbRole === 'admin') {
-          setUserRole(dbRole)
-        } else {
-          const metaRole = user.user_metadata?.role
-          console.log('[resolveRole] dbRole no válido, usando metadata:', metaRole)
-          if (metaRole === 'teacher' || metaRole === 'admin') setUserRole(metaRole)
-          else setUserRole('student')
-        }
-      } catch (e) {
-        console.log('[resolveRole] catch:', e)
-        const metaRole = user.user_metadata?.role
-        if (metaRole === 'teacher' || metaRole === 'admin') setUserRole(metaRole)
+        if (dbRole === 'teacher' || dbRole === 'admin') setUserRole(dbRole)
         else setUserRole('student')
+      } catch {
+        setUserRole('student')
       } finally {
         setIsLoading(false)
       }
@@ -120,12 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(error.message)
     }
 
-    // El rol se actualiza via onAuthStateChange automáticamente.
-    // Si el usuario no tiene rol asignado aún, actualizamos sus metadatos.
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (currentUser && !currentUser.user_metadata?.role) {
-      await supabase.auth.updateUser({ data: { role } })
-    }
+    // El rol se resuelve desde user_profiles al cambiar el usuario (ver resolveRole).
   }, [supabase])
 
   const sendMagicLink = useCallback(async (email: string) => {
@@ -172,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
       options: {
-        data: { role, full_name: name },
+        data: { full_name: name },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
