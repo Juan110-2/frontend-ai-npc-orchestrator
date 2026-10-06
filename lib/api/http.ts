@@ -5,8 +5,7 @@
  *   1. El usuario hace login con Supabase → recibe un access_token JWT.
  *   2. Cada request al backend incluye ese token en Authorization: Bearer <token>.
  *   3. El backend (app/core/auth.py) valida el token contra SUPABASE_JWT_SECRET.
- *   4. Si SUPABASE_JWT_SECRET no está definido en el backend, la validación se omite
- *      (modo desarrollo sin auth).
+ *   4. Las rutas /sessions/* y /conversation/* exigen el token; sin él responden 401.
  *
  * Módulo interno de lib/api/ — no se re-exporta desde el índice público.
  */
@@ -17,7 +16,7 @@ export const BACKEND_BASE_URL =
 
 /**
  * Obtiene el JWT de la sesión activa de Supabase.
- * Retorna null si no hay sesión (el backend aceptará la request sin auth si no tiene JWT_SECRET configurado).
+ * Retorna null si no hay sesión (el backend responderá 401 en las rutas protegidas).
  */
 export async function getToken(): Promise<string | null> {
   try {

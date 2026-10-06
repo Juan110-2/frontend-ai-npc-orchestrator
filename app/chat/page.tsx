@@ -55,6 +55,7 @@ import {
   type BackendSession,
 } from "@/lib/api"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
 
 interface ChatMessage {
@@ -290,6 +291,7 @@ function ChatPageContent() {
   const heartbeatRef = useRef<ReturnType<typeof setInterval>>()
   const lastActivityRef = useRef<number>(0)
   const timerSessionId = useRef<string | null>(null)  // sessionId activo en el timer
+  const accessTokenRef = useRef<string | null>(null)  // JWT disponible de forma síncrona para el flush al cerrar
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -499,17 +501,35 @@ function ChatPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, sessionStatus])
 
-  // ── Timer: beacon helper (funciona en visibilitychange + pagehide) ────────
+  // ── Token: espejo síncrono del JWT de Supabase (pagehide no admite await) ──
+  useEffect(() => {
+    const supabase = createClient()
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      accessTokenRef.current = session?.access_token ?? null
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      accessTokenRef.current = session?.access_token ?? null
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // ── Timer: flush helper (funciona en visibilitychange + pagehide) ─────────
+  // sendBeacon no permite cabecera Authorization → fetch con keepalive.
   const sendBeaconFlush = useCallback(() => {
     const delta = stopSegment()
     if (delta <= 0 || !timerSessionId.current) return
     const sid = timerSessionId.current
-    // Escribir checkpoint ANTES del beacon (síncrono, nunca falla)
+    // Escribir checkpoint ANTES del envío (síncrono, nunca falla)
     localStorage.setItem(cpKey(sid), JSON.stringify({ total: accSecondsRef.current, ts: Date.now() }))
-    const body = JSON.stringify({ delta_seconds: delta })
+    const token = accessTokenRef.current
+    if (!token) return  // sin token el backend rechazaría la request; queda el checkpoint
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000'}/sessions/${sid}/time`
-    const sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }))
-    if (!sent) void flushDelta(delta, sid)  // fallback si sendBeacon falla
+    fetch(url, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ delta_seconds: delta }),
+    }).catch(() => { void flushDelta(delta, sid) })  // fallback si el envío falla
   }, [stopSegment, flushDelta])
 
   // ── Timer: visibilitychange ───────────────────────────────────────────────
