@@ -57,7 +57,7 @@ export default function EscenariosPage() {
   }, [items, search])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este escenario? Las sesiones que lo usan también se borrarán.')) return
+    if (!confirm('¿Eliminar este escenario? Solo se puede eliminar si no tiene sesiones registradas.')) return
     try {
       await deleteScenario(id)
       toast.success('Escenario eliminado.')

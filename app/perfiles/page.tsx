@@ -103,7 +103,7 @@ export default function PerfilesPage() {
   }
 
   const handleDelete = async (profileId: string) => {
-    if (!confirm('¿Eliminar este perfil? Las sesiones asociadas también se borrarán.')) return
+    if (!confirm('¿Eliminar este perfil? Solo se puede eliminar si no tiene sesiones registradas.')) return
     try {
       await deleteProfile(profileId)
       toast.success('Perfil eliminado.')
