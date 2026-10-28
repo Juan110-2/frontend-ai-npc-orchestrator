@@ -78,6 +78,8 @@ type ScenarioValues = ProfileTemplate['scenario']
 type ExistingScenario = {
   id: string
   original: ScenarioValues
+  /** constraints completos del escenario original, para conservarlos al crear una copia */
+  constraints: Record<string, unknown>
 }
 
 type ScenarioOutcome = 'created' | 'reused' | 'copied'
@@ -369,7 +371,7 @@ export default function WizardPerfilPage() {
 
   const applyScenario = (item: BackendScenario) => {
     const values = scenarioToFormValues(item)
-    setExistingScenario({ id: item.id, original: values })
+    setExistingScenario({ id: item.id, original: values, constraints: item.constraints ?? {} })
     setScenario({ ...values })
     setScenarioSearchOpen(false)
   }
@@ -468,7 +470,8 @@ export default function WizardPerfilPage() {
           context: form.scenario.context,
           severity: Math.round(form.scenario.severity),
           risk_flags: form.scenario.riskFlags,
-          constraints: { description: form.scenario.description },
+          // Una copia conserva todos los constraints del original; solo cambia la descripción
+          constraints: { ...(existingScenario?.constraints ?? {}), description: form.scenario.description },
         })
         scenarioId = created.id
         outcome = existingScenario ? 'copied' : 'created'
