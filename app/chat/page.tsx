@@ -3,17 +3,14 @@
 import { Suspense, useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { FutureFeatureBadge } from "@/components/future-feature-badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
   AlertDialog,
@@ -52,7 +49,7 @@ import {
   listScenarios,
   connectConversationStream,
   ChatStreamError,
-  startSession,
+  ApiError,
   type BackendProfile,
   type BackendScenario,
   type BackendSession,
@@ -308,12 +305,9 @@ function ChatPageContent() {
   const { userRole, user, isLoading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("sesion") || searchParams.get("session")
-  const perfilParam = searchParams.get("perfil")
-  const escenarioParam = searchParams.get("escenario")
-  const setupMode = searchParams.get("setup") === "1"
 
-  const [selectedPerfilId, setSelectedPerfilId] = useState(perfilParam || "")
-  const [selectedEscenarioId, setSelectedEscenarioId] = useState(escenarioParam || "")
+  const [selectedPerfilId, setSelectedPerfilId] = useState("")
+  const [selectedEscenarioId, setSelectedEscenarioId] = useState("")
   const [availablePerfiles, setAvailablePerfiles] = useState<BackendProfile[]>([])
   const [availableEscenarios, setAvailableEscenarios] = useState<BackendScenario[]>([])
   const [activeSession, setActiveSession] = useState<BackendSession | null>(null)
@@ -344,11 +338,14 @@ function ChatPageContent() {
   const [finalizeOpen, setFinalizeOpen] = useState(false)
   const [statusSheetOpen, setStatusSheetOpen] = useState(false)
   const isAdmin = userRole === "admin"
-  // Los estudiantes no crean sesiones: solo chatean en las que les asignaron
-  const isStudent = userRole === "student"
   const effectiveTeacherView = teacherViewOverride ?? (userRole === "teacher" || userRole === "admin")
 
   useEffect(() => {
+    if (!sessionId) {
+      // Las sesiones se crean desde /sesiones; sin sesión no hay nada que mostrar aquí
+      router.replace("/sesiones")
+      return
+    }
     void (async () => {
       try {
         setIsBootstrapping(true)
@@ -356,42 +353,45 @@ function ChatPageContent() {
         setAvailablePerfiles(profiles)
         setAvailableEscenarios(scenarios)
 
-        if (sessionId) {
-          const session = await getSession(sessionId)
-          setActiveSession(session)
-          setSelectedPerfilId(session.profile_id)
-          setSelectedEscenarioId(session.scenario_id)
-          setSessionStatus(session.status ?? (session.ended_at ? "completed" : "active"))
+        const session = await getSession(sessionId)
+        setActiveSession(session)
+        setSelectedPerfilId(session.profile_id)
+        setSelectedEscenarioId(session.scenario_id)
+        setSessionStatus(session.status ?? (session.ended_at ? "completed" : "active"))
 
-          const serverAcc = session.accumulated_seconds ?? 0
-          let localAcc = serverAcc
-          accSecondsRef.current = serverAcc
+        const serverAcc = session.accumulated_seconds ?? 0
+        let localAcc = serverAcc
+        accSecondsRef.current = serverAcc
 
-          // Reconcile localStorage checkpoint vs server value
-          const raw = localStorage.getItem(cpKey(sessionId))
-          if (raw) {
-            try {
-              const cp: TimerCheckpoint = JSON.parse(raw)
-              if (cp.total > serverAcc) {
-                const diff = cp.total - serverAcc
-                await patchSessionTime(sessionId, diff)
-                localAcc = cp.total
-                accSecondsRef.current = cp.total
-              }
-            } catch { /* ignore malformed checkpoint */ }
-            localStorage.removeItem(cpKey(sessionId))
-          }
-
-          setAccSeconds(localAcc)
-          setDisplaySeconds(localAcc)
+        // Reconcile localStorage checkpoint vs server value
+        const raw = localStorage.getItem(cpKey(sessionId))
+        if (raw) {
+          try {
+            const cp: TimerCheckpoint = JSON.parse(raw)
+            if (cp.total > serverAcc) {
+              const diff = cp.total - serverAcc
+              await patchSessionTime(sessionId, diff)
+              localAcc = cp.total
+              accSecondsRef.current = cp.total
+            }
+          } catch { /* ignore malformed checkpoint */ }
+          localStorage.removeItem(cpKey(sessionId))
         }
-      } catch {
-        toast.error("No se pudo conectar con el backend del chat.")
+
+        setAccSeconds(localAcc)
+        setDisplaySeconds(localAcc)
+      } catch (err) {
+        const status = err instanceof ApiError ? err.status : undefined
+        if (status === 403) toast.error("No tienes acceso a esta sesión.")
+        else if (status === 404) toast.error("La sesión no existe.")
+        else if (status !== undefined && status < 500 && err instanceof Error) toast.error(err.message)
+        else toast.error("No se pudo conectar con el backend del chat.")
+        router.replace("/sesiones")
       } finally {
         setIsBootstrapping(false)
       }
     })()
-  }, [sessionId])
+  }, [sessionId, router])
 
   const perfil = availablePerfiles.find((p) => p.id === selectedPerfilId) || null
   const escenario = availableEscenarios.find((e) => e.id === selectedEscenarioId) || null
@@ -406,19 +406,9 @@ function ChatPageContent() {
       currentSeverity: activeSession.current_severity,
       endedAt: activeSession.ended_at,
     }
-    : perfil && escenario
-      ? {
-        id: `draft-${perfil.id}-${escenario.id}`,
-        perfilId: perfil.id,
-        perfilName: perfil.name,
-        escenarioId: escenario.id,
-        escenarioName: escenario.name,
-        currentSeverity: escenario.severity,
-        endedAt: null,
-      }
-      : null
+    : null
 
-  const canStartChat = Boolean(sesion && perfil && escenario)
+  const canStartChat = Boolean(sesion)
 
 
   // Auto-scroll al último mensaje. El ScrollArea de radix usa un viewport
@@ -633,23 +623,7 @@ function ChatPageContent() {
   const sendMessage = async (text: string, retryOfId?: string) => {
     if (!canStartChat || !text.trim() || isLoading) return
 
-    let sessionForMessage = activeSession
-
-    if (!sessionForMessage && perfil && escenario && !isStudent) {
-      try {
-        sessionForMessage = await startSession({
-          profile_id: perfil.id,
-          scenario_id: escenario.id,
-        })
-        setActiveSession(sessionForMessage)
-        setSessionStatus("active")
-        router.replace(`/chat?sesion=${sessionForMessage.id}`)
-      } catch {
-        toast.error("No se pudo iniciar la sesión en el backend.")
-        return
-      }
-    }
-
+    const sessionForMessage = activeSession
     if (!sessionForMessage) return
 
     // Flush del segmento actual antes de enviar (checkpoint natural)
@@ -845,22 +819,6 @@ function ChatPageContent() {
     })()
   }
 
-  const handleStartFromSetup = () => {
-    if (isStudent || !selectedPerfilId || !selectedEscenarioId) return
-
-    void (async () => {
-      try {
-        const started = await startSession({
-          profile_id: selectedPerfilId,
-          scenario_id: selectedEscenarioId,
-        })
-        router.push(`/chat?sesion=${started.id}`)
-      } catch {
-        toast.error("No se pudo crear la sesión de chat.")
-      }
-    })()
-  }
-
   if (isBootstrapping) {
     return <PageLoader message="Cargando sesión..." />
   }
@@ -869,91 +827,9 @@ function ChatPageContent() {
     return <PageLoader message="Cargando sesión..." />
   }
 
-  if (isStudent && (!canStartChat || setupMode)) {
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <PageHeader
-          title="Chat"
-          description="Aquí realizas las sesiones que tu profesor te asigna."
-        />
-
-        <Card className="mt-6 max-w-2xl">
-          <CardHeader>
-            <CardTitle>No tienes una sesión seleccionada</CardTitle>
-            <CardDescription>
-              Abre una de tus sesiones asignadas desde la lista de sesiones.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/sesiones')}>
-              Ver mis sesiones
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (!canStartChat || setupMode) {
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <PageHeader
-          title="Configurar sesión"
-          description="Selecciona personaje y escenario antes de entrar al chat."
-        />
-
-        <Card className="mt-6 max-w-2xl">
-          <CardHeader>
-            <CardTitle>Datos de la simulación</CardTitle>
-            <CardDescription>
-              Aquí defines manualmente la información base de la sesión.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Personaje simulado</p>
-              <Select value={selectedPerfilId} onValueChange={setSelectedPerfilId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un perfil" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePerfiles.map((perfilOption) => (
-                    <SelectItem key={perfilOption.id} value={perfilOption.id}>
-                      {perfilOption.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Escenario</p>
-              <Select value={selectedEscenarioId} onValueChange={setSelectedEscenarioId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un escenario" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableEscenarios.map((escenarioOption) => (
-                    <SelectItem key={escenarioOption.id} value={escenarioOption.id}>
-                      {escenarioOption.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={handleStartFromSetup} disabled={!selectedPerfilId || !selectedEscenarioId}>
-                Iniciar chat
-              </Button>
-              <Button variant="outline" onClick={() => router.push('/sesiones')}>
-                Volver a sesiones
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  if (!activeSession) {
+    // La carga falló o no hay sesión: ya se avisó y se está volviendo a /sesiones
+    return <PageLoader message="Volviendo a sesiones..." />
   }
 
   return (
