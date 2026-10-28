@@ -50,7 +50,7 @@ export default function CredencialesPage() {
             </div>
             <div className="text-left">
               <h1 className="text-xl font-bold text-[color:var(--app-panel-header-color)] leading-tight">Universidad del Valle</h1>
-              <p className="text-xs text-gray-500">PsicoSim — Simulación Clínica Virtual</p>
+              <p className="text-xs text-gray-500">PsicoSim · Simulación Clínica Virtual</p>
             </div>
           </div>
         </div>

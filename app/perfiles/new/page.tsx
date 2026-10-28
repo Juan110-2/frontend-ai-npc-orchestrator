@@ -1089,7 +1089,7 @@ export default function WizardPerfilPage() {
               </div>
             ) : (
               <div className="rounded-lg border border-dashed bg-card p-4 text-sm text-muted-foreground">
-                Sin escenario — solo se creará el perfil, sin sesión.
+                Sin escenario: solo se creará el perfil, sin sesión.
               </div>
             )}
           </CardContent>

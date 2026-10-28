@@ -54,7 +54,7 @@ function NamedList({ items }: { items: NamedItem[] }) {
         <li key={`${item.name}-${i}`} className="text-sm">
           <span className="font-medium">{item.name}</span>
           {item.description && (
-            <span className="text-muted-foreground"> — {item.description}</span>
+            <span className="text-muted-foreground"> → {item.description}</span>
           )}
         </li>
       ))}

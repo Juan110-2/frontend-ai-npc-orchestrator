@@ -192,7 +192,7 @@ function SessionContextPanel({
                       <li key={t.name} className="text-sm">
                         <span className="font-medium">{t.name}</span>
                         {t.description && (
-                          <span className="text-muted-foreground"> — {t.description}</span>
+                          <span className="text-muted-foreground"> → {t.description}</span>
                         )}
                       </li>
                     ))}
@@ -208,7 +208,7 @@ function SessionContextPanel({
                       <li key={r.name} className="text-sm">
                         <span className="font-medium">{r.name}</span>
                         {r.description && (
-                          <span className="text-muted-foreground"> — {r.description}</span>
+                          <span className="text-muted-foreground"> → {r.description}</span>
                         )}
                       </li>
                     ))}
@@ -886,7 +886,7 @@ function ChatPageContent() {
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-base font-semibold leading-tight text-foreground">Sesión de simulación</h1>
                 <p className="truncate text-xs text-muted-foreground">
-                  {effectiveTeacherView ? `${perfil?.name || "Perfil"} — ${escenario?.name || "Escenario"}` : "Modo exploración"}
+                  {effectiveTeacherView ? `${perfil?.name || "Perfil"} · ${escenario?.name || "Escenario"}` : "Modo exploración"}
                 </p>
               </div>
               {effectiveTeacherView && (
