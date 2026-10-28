@@ -9,16 +9,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { DeleteCaseDialog } from '@/components/delete-case-dialog'
 import { PageHeader } from '@/components/page-header'
 import { SeverityRange } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
@@ -26,7 +17,7 @@ import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import {
-  deleteProfile, listProfiles, listScenarios, startSession,
+  deleteProfile, getProfileUsage, listProfiles, listScenarios, startSession,
   type BackendProfile, type BackendScenario,
 } from '@/lib/api'
 
@@ -123,7 +114,7 @@ export default function PerfilesPage() {
       setToDelete(null)
       void load()
     } catch (err) {
-      toast.error('No se pudo eliminar: ' + String(err))
+      toast.error('No se pudo eliminar: ' + (err instanceof Error ? err.message : String(err)))
       setToDelete(null)
     } finally {
       setDeleting(false)
@@ -345,26 +336,14 @@ export default function PerfilesPage() {
       )}
       <Paginator total={filtered.length} page={page} onPageChange={setPage} />
 
-      <AlertDialog open={toDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setToDelete(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se eliminará el perfil «{toDelete?.name}». Solo se puede eliminar si no tiene sesiones registradas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleting}
-              onClick={(e) => { e.preventDefault(); void handleDelete() }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? 'Eliminando…' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteCaseDialog
+        kind="perfil"
+        target={toDelete}
+        deleting={deleting}
+        getUsage={getProfileUsage}
+        onConfirm={() => { void handleDelete() }}
+        onClose={() => setToDelete(null)}
+      />
     </div>
   )
 }
