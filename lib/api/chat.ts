@@ -53,6 +53,30 @@ export type StreamDonePayload = {
   }
 }
 
+/** Error al abrir el stream (respuesta HTTP no exitosa) con mensaje ya legible. */
+export class ChatStreamError extends Error {
+  status?: number
+  constructor(message: string, status?: number) {
+    super(message)
+    this.name = 'ChatStreamError'
+    this.status = status
+  }
+}
+
+function httpErrorMessage(status: number, text: string): string {
+  if (status === 429) {
+    return 'Alcanzaste el límite de mensajes permitidos. Intenta de nuevo más tarde.'
+  }
+  try {
+    const json = JSON.parse(text)
+    const detail = json.detail ?? json.message
+    if (typeof detail === 'string' && detail.trim()) return detail
+  } catch {
+    // no es JSON
+  }
+  return `Error ${status}`
+}
+
 export type StreamHandle = {
   close: () => void
   onChunk: (cb: (text: string) => void) => void
@@ -83,7 +107,7 @@ export async function connectConversationStream(
 
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(text || `Error ${response.status}`)
+    throw new ChatStreamError(httpErrorMessage(response.status, text), response.status)
   }
 
   const reader = response.body!.getReader()
@@ -94,6 +118,16 @@ export async function connectConversationStream(
   let errorCallback: ((err: Error) => void) | null = null
   let closed = false
   let started = false
+  // El stream termina una sola vez: con `done` o con un error (nunca ambos ni dos veces)
+  let settled = false
+
+  const fail = (err: Error) => {
+    if (settled || closed) return
+    settled = true
+    closed = true
+    reader.cancel().catch(() => {})
+    if (errorCallback) errorCallback(err)
+  }
 
   const readLoop = async () => {
     let buffer = ''
@@ -107,11 +141,22 @@ export async function connectConversationStream(
         buffer = lines.pop() ?? ''
 
         for (const line of lines) {
+          if (closed) break
           if (!line.startsWith('data: ')) continue
+          let payload: any
           try {
-            const payload = JSON.parse(line.slice(6))
-            if (payload.chunk && chunkCallback) chunkCallback(payload.chunk)
-            if (payload.done && doneCallback) {
+            payload = JSON.parse(line.slice(6))
+          } catch {
+            continue // chunk malformado — ignorar
+          }
+          if (payload.error) {
+            fail(new Error(typeof payload.error === 'string' ? payload.error : 'Error al generar la respuesta'))
+            return
+          }
+          if (payload.chunk && chunkCallback) chunkCallback(payload.chunk)
+          if (payload.done) {
+            settled = true
+            if (doneCallback) {
               doneCallback({
                 severity: payload.severity,
                 should_close: payload.should_close,
@@ -119,13 +164,13 @@ export async function connectConversationStream(
                 metrics: payload.metrics,
               })
             }
-          } catch {
-            // chunk malformado — ignorar
           }
         }
       }
+      // El stream terminó sin `done` ni error (corte de conexión)
+      if (!settled) fail(new Error('La conexión se cerró antes de completar la respuesta'))
     } catch (err) {
-      if (errorCallback) errorCallback(err as Error)
+      fail(err as Error)
     }
   }
 

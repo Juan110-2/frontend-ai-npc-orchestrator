@@ -49,6 +49,7 @@ import {
   listProfiles,
   listScenarios,
   connectConversationStream,
+  ChatStreamError,
   startSession,
   type BackendProfile,
   type BackendScenario,
@@ -64,6 +65,10 @@ interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
   timestamp: string
+  /** El envío falló: el backend descartó el turno y el texto puede reenviarse */
+  failed?: boolean
+  /** El fallo no se resuelve reintentando (sesión cerrada, sin acceso, etc.) */
+  noRetry?: boolean
   metadata?: {
     emotionalState?: string
     riskFlags?: string[]
@@ -263,7 +268,7 @@ function SessionContextPanel({
 
 function ChatPageContent() {
   const router = useRouter()
-  const { userRole, isLoading: authLoading } = useAuth()
+  const { userRole, user, isLoading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("sesion") || searchParams.get("session")
   const perfilParam = searchParams.get("perfil")
@@ -590,8 +595,16 @@ function ChatPageContent() {
     return () => clearInterval(interval)
   }, [accSeconds])
 
-  const handleSendMessage = async () => {
-    if (!canStartChat || !inputValue.trim() || isLoading) return
+  // Reintentar solo aplica si la sesión sigue activa y el usuario es su dueño
+  const canRetry = sessionStatus === "active" &&
+    (!activeSession?.user_id || activeSession.user_id === user?.id)
+
+  const handleSendMessage = () => { void sendMessage(inputValue) }
+
+  const handleRetry = (message: ChatMessage) => { void sendMessage(message.content, message.id) }
+
+  const sendMessage = async (text: string, retryOfId?: string) => {
+    if (!canStartChat || !text.trim() || isLoading) return
 
     let sessionForMessage = activeSession
 
@@ -628,19 +641,34 @@ function ChatPageContent() {
       id: `user-${Date.now()}`,
       sessionId: sessionForMessage.id,
       role: "user",
-      content: inputValue,
+      content: text,
       timestamp: new Date().toISOString(),
     }
 
-    const messageText = inputValue
-    setMessages(prev => [...prev, userMessage])
-    setInputValue("")
-    if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto'
-    if (mobileTextareaRef.current) mobileTextareaRef.current.style.height = 'auto'
+    const messageText = text
+    // Al reintentar se reemplaza el mensaje fallido (sin duplicarlo) y se conserva lo que haya en el input
+    setMessages(prev => [...prev.filter(m => m.id !== retryOfId), userMessage])
+    if (retryOfId === undefined) {
+      setInputValue("")
+      if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto'
+      if (mobileTextareaRef.current) mobileTextareaRef.current.style.height = 'auto'
+    }
     setIsLoading(true)
 
     const assistantId = `assistant-${Date.now()}`
     let placeholderCreated = false
+
+    // El backend descarta el turno fallido: se quita la burbuja parcial del paciente
+    // y el mensaje del estudiante queda marcado para poder reintentarlo.
+    const failSend = (toastMessage: string, noRetry = false) => {
+      setMessages(prev =>
+        prev
+          .filter(m => m.id !== assistantId)
+          .map(m => (m.id === userMessage.id ? { ...m, failed: true, noRetry } : m))
+      )
+      setIsLoading(false)
+      toast.error(toastMessage)
+    }
 
     try {
       const handle = await connectConversationStream(sessionForMessage.id, messageText)
@@ -700,15 +728,17 @@ function ChatPageContent() {
         }
       })
 
-      handle.onError((err) => {
-        toast.error("Error en la conexión: " + err.message)
-        setIsLoading(false)
+      handle.onError(() => {
+        failSend("No se pudo obtener la respuesta del paciente.")
       })
 
       handle.start()
     } catch (err) {
-      toast.error("No se pudo enviar el mensaje: " + String(err))
-      setIsLoading(false)
+      const status = err instanceof ChatStreamError ? err.status : undefined
+      const detail = err instanceof Error ? err.message : String(err)
+      // 400/403/404/409: la sesión está cerrada o el usuario no tiene acceso; reintentar no sirve
+      const noRetry = status === 400 || status === 403 || status === 404 || status === 409
+      failSend("No se pudo enviar el mensaje: " + detail, noRetry)
     }
   }
 
@@ -1016,6 +1046,21 @@ function ChatPageContent() {
                             <span className="text-[10px] text-muted-foreground">
                               {new Date(message.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                             </span>
+                            {message.failed && (
+                              <span className="flex items-center gap-1.5 text-[10px] text-destructive">
+                                No se pudo enviar
+                                {canRetry && !message.noRetry && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetry(message)}
+                                    disabled={isLoading}
+                                    className="font-medium underline underline-offset-2 hover:opacity-80 disabled:pointer-events-none disabled:opacity-50"
+                                  >
+                                    Reintentar
+                                  </button>
+                                )}
+                              </span>
+                            )}
                             {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
                               <Badge variant="destructive" className="gap-1 text-[10px]">
                                 <AlertTriangle className="h-2.5 w-2.5" />
@@ -1053,6 +1098,21 @@ function ChatPageContent() {
                             <span className="text-xs text-muted-foreground">
                               {new Date(message.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                             </span>
+                            {message.failed && (
+                              <span className="flex items-center gap-2 text-xs text-destructive">
+                                No se pudo enviar
+                                {canRetry && !message.noRetry && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetry(message)}
+                                    disabled={isLoading}
+                                    className="font-medium underline underline-offset-2 hover:opacity-80 disabled:pointer-events-none disabled:opacity-50"
+                                  >
+                                    Reintentar
+                                  </button>
+                                )}
+                              </span>
+                            )}
                             {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
                               <Badge variant="destructive" className="gap-1 text-xs">
                                 <AlertTriangle className="h-3 w-3" />
