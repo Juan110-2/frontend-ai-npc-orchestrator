@@ -8,6 +8,7 @@ export type BackendScenario = {
   severity: number
   risk_flags: string[]
   constraints: Record<string, unknown>
+  created_by?: string | null
   created_at: string
 }
 

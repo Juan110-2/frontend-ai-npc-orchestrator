@@ -9,8 +9,10 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { DeleteCaseDialog } from '@/components/delete-case-dialog'
 import { PageHeader } from '@/components/page-header'
+import { OwnerFilterTabs, useOwnerFilter } from '@/components/owner-filter'
 import { SeverityRange } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
@@ -43,10 +45,11 @@ function asStringArray(value: unknown): string[] {
 
 export default function PerfilesPage() {
   const router = useRouter()
-  const { userRole, isLoading: authLoading } = useAuth()
+  const { user, userRole, isLoading: authLoading } = useAuth()
   const [items, setItems] = useState<CardData[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [owner, setOwner] = useOwnerFilter('perfiles:owner-filter')
   const [page, setPage] = useState(1)
   const [toDelete, setToDelete] = useState<BackendProfile | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -78,16 +81,24 @@ export default function PerfilesPage() {
   }
 
   useEffect(() => { void load() }, [])
-  useEffect(() => { setPage(1) }, [search])
+  useEffect(() => { setPage(1) }, [search, owner])
+
+  const mineCount = useMemo(
+    () => items.filter(({ profile }) => !!user && profile.created_by === user.id).length,
+    [items, user],
+  )
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items
+    const scoped = owner === 'mine'
+      ? items.filter(({ profile }) => !!user && profile.created_by === user.id)
+      : items
+    if (!search.trim()) return scoped
     const q = search.toLowerCase()
-    return items.filter(({ profile }) =>
+    return scoped.filter(({ profile }) =>
       profile.name.toLowerCase().includes(q) ||
       profile.description.toLowerCase().includes(q)
     )
-  }, [items, search])
+  }, [items, search, owner, user])
 
   const handlePractice = async (profileId: string) => {
     // Necesitamos un escenario para iniciar sesión. Si no hay vinculado,
@@ -137,6 +148,13 @@ export default function PerfilesPage() {
         </Link>
       </div>
 
+      <OwnerFilterTabs
+        value={owner}
+        onChange={setOwner}
+        mineCount={mineCount}
+        allCount={items.length}
+      />
+
       <div className="mb-4 max-w-md">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -158,7 +176,9 @@ export default function PerfilesPage() {
             <p className="text-sm text-muted-foreground">
               {items.length === 0
                 ? 'Aún no has creado ningún perfil. Empieza creando uno.'
-                : 'No hay resultados para tu búsqueda.'}
+                : owner === 'mine' && mineCount === 0
+                  ? 'Aún no has creado perfiles. Puedes duplicar uno existente desde Todos o crear uno nuevo.'
+                  : 'No hay resultados para tu búsqueda.'}
             </p>
             {items.length === 0 && (
               <Link href="/perfiles/new">
@@ -196,13 +216,16 @@ export default function PerfilesPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
                       {initials || '·'}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{profile.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {age ? `${age} años` : 'Edad sin definir'}
                         {occupation ? ` · ${occupation}` : ''}
                       </p>
                     </div>
+                    {!!user && profile.created_by === user.id && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Tuyo</Badge>
+                    )}
                   </div>
 
                   <p className="mb-3 line-clamp-2 text-sm">{profile.description}</p>
