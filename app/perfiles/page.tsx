@@ -18,6 +18,7 @@ import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
+import { canManageCase } from '@/lib/case-permissions'
 import {
   deleteProfile, getProfileUsage, listProfiles, listScenarios, startSession,
   type BackendProfile, type BackendScenario,
@@ -208,6 +209,7 @@ export default function PerfilesPage() {
 
             const initials = profile.name.split(' ')
               .map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+            const canManage = canManageCase(profile.created_by, user, userRole)
 
             return (
               <Card key={profile.id} className="flex flex-col">
@@ -330,23 +332,27 @@ export default function PerfilesPage() {
                           <Copy className="h-4 w-4" />
                         </Button>
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        {canManage && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => router.push(`/perfiles/${profile.id}/edit`)}
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setToDelete(profile)}
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setToDelete(profile)}
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
 
                         <Button
                           size="sm"

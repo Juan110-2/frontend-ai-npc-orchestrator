@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/ui-states'
 import { toast } from 'sonner'
 import { deleteScenario, getScenarioUsage, listScenarios, type BackendScenario } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import { canManageCase } from '@/lib/case-permissions'
 
 function formatSeverityValue(value: number) {
   const safeValue = Math.max(0, Math.min(5, value))
@@ -149,6 +150,7 @@ export default function EscenariosPage() {
 
             const riskShown = riskFlags.slice(0, 3)
             const riskExtra = riskFlags.length - riskShown.length
+            const canManage = canManageCase(s.created_by, user, userRole)
 
             return (
             <Card key={s.id} className="flex flex-col">
@@ -219,20 +221,24 @@ export default function EscenariosPage() {
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    onClick={() => router.push(`/escenarios/${s.id}/edit`)}
-                    title="Editar"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    onClick={() => setToDelete(s)}
-                    title="Eliminar"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => router.push(`/escenarios/${s.id}/edit`)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => setToDelete(s)}
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </>
+                  )}
                   </div>
                 </div>
               </CardContent>
