@@ -340,7 +340,16 @@ function ChatPageContent() {
   const isAdmin = userRole === "admin"
   const effectiveTeacherView = teacherViewOverride ?? (userRole === "teacher" || userRole === "admin")
 
+  // Solo el dueño de la sesión puede escribir y reportar tiempo; quien la asignó y el admin solo la ven y la finalizan
+  const isOwner = Boolean(user?.id && activeSession?.user_id === user.id)
+  const isOwnerRef = useRef(false)
+  useEffect(() => { isOwnerRef.current = isOwner }, [isOwner])  // declarado antes del efecto del cronómetro
+  const isActive = sessionStatus === "active"
+  const canSend = isOwner && isActive
+  const canFinalize = isActive && (isOwner || isAdmin || (Boolean(user?.id) && activeSession?.assigned_by === user?.id))
+
   useEffect(() => {
+    if (authLoading) return
     if (!sessionId) {
       // Las sesiones se crean desde /sesiones; sin sesión no hay nada que mostrar aquí
       router.replace("/sesiones")
@@ -364,7 +373,8 @@ function ChatPageContent() {
         accSecondsRef.current = serverAcc
 
         // Reconcile localStorage checkpoint vs server value
-        const raw = localStorage.getItem(cpKey(sessionId))
+        // (solo el dueño reporta tiempo: a los demás el backend les respondería 403)
+        const raw = session.user_id === user?.id ? localStorage.getItem(cpKey(sessionId)) : null
         if (raw) {
           try {
             const cp: TimerCheckpoint = JSON.parse(raw)
@@ -391,7 +401,8 @@ function ChatPageContent() {
         setIsBootstrapping(false)
       }
     })()
-  }, [sessionId, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, router, authLoading])
 
   const perfil = availablePerfiles.find((p) => p.id === selectedPerfilId) || null
   const escenario = availableEscenarios.find((e) => e.id === selectedEscenarioId) || null
@@ -503,6 +514,7 @@ function ChatPageContent() {
   const startSegment = useCallback((status: Sesion["status"]) => {
     if (segmentStartRef.current !== null) return  // ya corriendo
     if (status !== 'active') return
+    if (!isOwnerRef.current) return  // solo el dueño acumula tiempo
     if (document.visibilityState !== 'visible') return
     segmentStartRef.current = Date.now()
     startHeartbeat()
@@ -511,7 +523,7 @@ function ChatPageContent() {
 
   // ── Timer: iniciar cuando la sesión activa carga ──────────────────────────
   useEffect(() => {
-    if (!sessionId || sessionStatus !== 'active') return
+    if (!sessionId || sessionStatus !== 'active' || !isOwner) return
     timerSessionId.current = sessionId
     startSegment(sessionStatus)
     return () => {
@@ -523,7 +535,7 @@ function ChatPageContent() {
       void flushDelta(delta, sid)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, sessionStatus])
+  }, [sessionId, sessionStatus, isOwner])
 
   // ── Token: espejo síncrono del JWT de Supabase (pagehide no admite await) ──
   useEffect(() => {
@@ -613,15 +625,14 @@ function ChatPageContent() {
   }, [accSeconds])
 
   // Reintentar solo aplica si la sesión sigue activa y el usuario es su dueño
-  const canRetry = sessionStatus === "active" &&
-    (!activeSession?.user_id || activeSession.user_id === user?.id)
+  const canRetry = canSend
 
   const handleSendMessage = () => { void sendMessage(inputValue) }
 
   const handleRetry = (message: ChatMessage) => { void sendMessage(message.content, message.id) }
 
   const sendMessage = async (text: string, retryOfId?: string) => {
-    if (!canStartChat || !text.trim() || isLoading) return
+    if (!canStartChat || !canSend || !text.trim() || isLoading) return
 
     const sessionForMessage = activeSession
     if (!sessionForMessage) return
@@ -807,7 +818,7 @@ function ChatPageContent() {
     void (async () => {
       try {
         const delta = stopSegment()
-        await flushDelta(delta, activeSession.id)
+        if (isOwner) await flushDelta(delta, activeSession.id)
         await endSession(activeSession.id, 'success')
         localStorage.removeItem(cpKey(activeSession.id))
         setSessionStatus('completed')
@@ -880,10 +891,12 @@ function ChatPageContent() {
                     {effectiveTeacherView ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 )}
-                <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full sm:w-auto sm:rounded-full sm:px-3" onClick={() => setFinalizeOpen(true)}>
-                  <StopCircle className="h-4 w-4 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
-                  <span className="hidden sm:inline">Finalizar</span>
-                </Button>
+                {canFinalize && (
+                  <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full sm:w-auto sm:rounded-full sm:px-3" onClick={() => setFinalizeOpen(true)}>
+                    <StopCircle className="h-4 w-4 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Finalizar</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -926,10 +939,12 @@ function ChatPageContent() {
                   {effectiveTeacherView ? <><EyeOff className="mr-2 h-4 w-4" />Vista estudiante</> : <><Eye className="mr-2 h-4 w-4" />Vista profesor</>}
                 </Button>
               )}
-              <Button variant="destructive" size="sm" onClick={() => setFinalizeOpen(true)}>
-                <StopCircle className="mr-2 h-4 w-4" />
-                Finalizar
-              </Button>
+              {canFinalize && (
+                <Button variant="destructive" size="sm" onClick={() => setFinalizeOpen(true)}>
+                  <StopCircle className="mr-2 h-4 w-4" />
+                  Finalizar
+                </Button>
+              )}
             </div>
           </div>
         </header>
@@ -1104,6 +1119,12 @@ function ChatPageContent() {
               </div>
             </div>
 
+            {isActive && !isOwner && (
+              <p className="border-t bg-muted/30 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                Estás viendo la sesión de un estudiante.
+              </p>
+            )}
+
             {/* Mobile input */}
             <div className="border-t bg-background/95 px-2 py-1.5 sm:hidden">
               <div className="flex items-center gap-2">
@@ -1119,7 +1140,7 @@ function ChatPageContent() {
                       el.style.height = Math.min(el.scrollHeight, 160) + 'px'
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
-                    disabled={sessionStatus !== "active"}
+                    disabled={!canSend}
                     rows={1}
                     className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-base leading-5 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
@@ -1127,7 +1148,7 @@ function ChatPageContent() {
                 <Button
                   size="icon"
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading || sessionStatus !== "active"}
+                  disabled={!inputValue.trim() || isLoading || !canSend}
                   className="h-7 w-7 shrink-0 rounded-full bg-slate-700 text-white shadow-sm hover:bg-slate-800 disabled:opacity-30"
                 >
                   <Send className="h-3.5 w-3.5" />
@@ -1150,7 +1171,7 @@ function ChatPageContent() {
                       el.style.height = Math.min(el.scrollHeight, 160) + 'px'
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
-                    disabled={sessionStatus !== "active"}
+                    disabled={!canSend}
                     rows={1}
                     className="flex-1 min-h-[32px] max-h-[160px] min-w-0 resize-none overflow-y-auto overflow-x-hidden border-0 bg-transparent py-[6px] text-left text-[12px] leading-4 shadow-none placeholder:text-left placeholder:text-muted-foreground break-all focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
@@ -1158,7 +1179,7 @@ function ChatPageContent() {
                 <Button
                   size="icon"
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading || sessionStatus !== "active"}
+                  disabled={!inputValue.trim() || isLoading || !canSend}
                   className="h-7 w-7 shrink-0 rounded-full bg-slate-700 text-white shadow-sm hover:bg-slate-800 disabled:opacity-30"
                 >
                   <Send className="h-3.5 w-3.5" />
