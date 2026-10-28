@@ -239,10 +239,10 @@ function EvaluationList() {
         </Card>
       ) : (
         <>
-          {isStaff && drafts.length > 0 && (
+          {drafts.length > 0 && (
             <section className="mb-6">
               <p className="mb-2 text-sm font-medium">
-                Pendientes de revisar
+                {isStaff ? "Pendientes de revisar" : "Esperando la calificación de tu docente"}
                 <Badge variant="secondary" className="ml-1">{drafts.length}</Badge>
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">

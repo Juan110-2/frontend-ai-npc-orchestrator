@@ -153,6 +153,8 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
   const metrics = evaluation?.automatic_metrics ?? {}
   const overall = evaluation?.overall_score ?? null
   const submitted = evaluation?.status === "submitted" || evaluation?.status === "reviewed"
+  // El estudiante no ve calificación mientras el docente no la envíe (el backend devuelve scores vacíos).
+  const awaitingGrade = !canEvaluate && !submitted
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -166,7 +168,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         />
         {evaluation && (
           <Badge variant={submitted ? "default" : "secondary"} className="ml-auto">
-            {evaluation.status}
+            {awaitingGrade ? "Pendiente" : evaluation.status}
           </Badge>
         )}
       </div>
@@ -210,7 +212,9 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
               value={metrics.risk_check_alerts_detected ?? 0}
               icon={<ShieldAlert className="h-4 w-4 text-amber-500" />}
             />
-            <MetricBox label="Puntaje global" value={overall != null ? `${overall} / 5` : "—"} />
+            {!awaitingGrade && (
+              <MetricBox label="Puntaje global" value={overall != null ? `${overall} / 5` : "—"} />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -274,8 +278,18 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         </CardContent>
       </Card>
 
+      {/* Estudiante con evaluación en borrador: aún no hay calificación */}
+      {awaitingGrade && (
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <Clock className="h-5 w-5 shrink-0" />
+            Tu docente aún no ha enviado la calificación.
+          </CardContent>
+        </Card>
+      )}
+
       {/* Rúbrica del docente */}
-      {rubric && (
+      {rubric && !awaitingGrade && (
         <Card>
           <CardHeader>
             <CardTitle>Rúbrica del docente</CardTitle>
