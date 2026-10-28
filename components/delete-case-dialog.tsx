@@ -56,11 +56,11 @@ export function DeleteCaseDialog({ kind, target, deleting, getUsage, onConfirm, 
     message =
       `No se puede eliminar: tiene ${withActivity} ` +
       plural(withActivity, 'sesión', 'sesiones') +
-      ' con conversación o evaluación registrada. Se conserva para mantener la trazabilidad de las prácticas.'
+      ' con actividad registrada (mensajes, evaluación o llamadas a la IA). Se conserva para mantener la trazabilidad de las prácticas.'
   } else if (unused > 0) {
     message =
       `Se eliminará el ${kind} «${name}» y también ${unused} ` +
-      plural(unused, 'sesión asignada que nunca se inició', 'sesiones asignadas que nunca se iniciaron') +
+      plural(unused, 'sesión asignada sin actividad', 'sesiones asignadas sin actividad') +
       '.'
   } else {
     message = `Se eliminará el ${kind} «${name}».`
