@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth-context'
+import { safeNextPath } from '@/lib/safe-next-path'
 import { toast } from 'sonner'
 
 export default function CredencialesPage() {
@@ -21,7 +22,7 @@ export default function CredencialesPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setNextPath(params.get('next') || '/')
+    setNextPath(safeNextPath(params.get('next')))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth-context'
+import { safeNextPath } from '@/lib/safe-next-path'
 import { toast } from 'sonner'
 
 const GoogleIcon = () => (
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setNextPath(params.get('next') || '/')
+    setNextPath(safeNextPath(params.get('next')))
     const error = params.get('error')
     if (error === 'oauth_missing_code') toast.error('Error en el inicio de sesión con Google')
     if (error === 'oauth_exchange_failed') toast.error('No se pudo completar la autenticación con Google')
