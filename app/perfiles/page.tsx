@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Plus, Play, Pencil, Trash2, Search, User as UserIcon, AlertTriangle, Copy,
+  Plus, Play, Pencil, Trash2, Search, User as UserIcon, AlertTriangle, Copy, Eye,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -312,6 +312,15 @@ export default function PerfilesPage() {
                       </div>
 
                       <div className="flex w-full items-center justify-between sm:ml-auto sm:w-auto sm:justify-end sm:gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => router.push(`/perfiles/${profile.id}`)}
+                          title="Ver"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+
                         <Button
                           size="sm"
                           variant="ghost"
