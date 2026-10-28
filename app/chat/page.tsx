@@ -46,6 +46,7 @@ import {
   endSession,
   patchSessionTime,
   getConversationHistory,
+  type BackendConversationMessage,
   getSession,
   listProfiles,
   listScenarios,
@@ -74,6 +75,41 @@ interface ChatMessage {
     emotionalState?: string
     riskFlags?: string[]
   }
+}
+
+function mapHistory(history: BackendConversationMessage[]): ChatMessage[] {
+  return history.map((item) => ({
+    id: item.id,
+    sessionId: item.session_id,
+    role: item.role === "trainee" ? "user" : item.role === "patient" ? "assistant" : "system",
+    content: item.content,
+    timestamp: item.created_at,
+    metadata: {
+      riskFlags: item.risk_flags,
+    },
+  }))
+}
+
+/** Espera un máximo de ms; si se pasa, rechaza (para no dejar el chat bloqueado sin red) */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms)
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (err) => { clearTimeout(timer); reject(err) },
+    )
+  })
+}
+
+/** Inserta los mensajes locales (sin guardar) entre los del servidor según su hora */
+function mergeLocalMessages(server: ChatMessage[], local: ChatMessage[]): ChatMessage[] {
+  const result = [...server]
+  for (const message of [...local].sort((a, b) => a.timestamp.localeCompare(b.timestamp))) {
+    const index = result.findIndex(m => m.timestamp > message.timestamp)
+    if (index === -1) result.push(message)
+    else result.splice(index, 0, message)
+  }
+  return result
 }
 
 type DisplaySession = {
@@ -406,17 +442,7 @@ function ChatPageContent() {
     void (async () => {
       try {
         const history = await getConversationHistory(activeSession.id)
-        const mapped: ChatMessage[] = history.map((item) => ({
-          id: item.id,
-          sessionId: item.session_id,
-          role: item.role === "trainee" ? "user" : item.role === "patient" ? "assistant" : "system",
-          content: item.content,
-          timestamp: item.created_at,
-          metadata: {
-            riskFlags: item.risk_flags,
-          },
-        }))
-        setMessages(mapped)
+        setMessages(mapHistory(history))
       } catch {
         toast.error("No se pudo cargar el historial de la sesión.")
       }
@@ -647,6 +673,8 @@ function ChatPageContent() {
     }
 
     const messageText = text
+    // Mensajes del estudiante que el servidor ya tenía antes de este envío (para saber si el nuevo quedó guardado)
+    const userCountBefore = messages.filter(m => m.role === "user" && !m.failed && m.id !== retryOfId).length
     // Al reintentar se reemplaza el mensaje fallido (sin duplicarlo) y se conserva lo que haya en el input
     setMessages(prev => [...prev.filter(m => m.id !== retryOfId), userMessage])
     if (retryOfId === undefined) {
@@ -659,16 +687,67 @@ function ChatPageContent() {
     const assistantId = `assistant-${Date.now()}`
     let placeholderCreated = false
 
-    // El backend descarta el turno fallido: se quita la burbuja parcial del paciente
-    // y el mensaje del estudiante queda marcado para poder reintentarlo.
-    const failSend = (toastMessage: string, noRetry = false) => {
+    // El servidor confirmó que descartó el turno (o no guardó nada): se quita la burbuja parcial
+    // del paciente y el mensaje del estudiante queda marcado para poder reintentarlo.
+    const failSend = (toastMessage: string) => {
       setMessages(prev =>
         prev
           .filter(m => m.id !== assistantId)
-          .map(m => (m.id === userMessage.id ? { ...m, failed: true, noRetry } : m))
+          .map(m => (m.id === userMessage.id ? { ...m, failed: true, noRetry: false } : m))
       )
       setIsLoading(false)
       toast.error(toastMessage)
+    }
+
+    // Fallo sin confirmación del servidor (corte, error de red, error HTTP): no se asume que el
+    // mensaje se perdió. Se recarga la conversación y se muestra lo que realmente quedó guardado.
+    const reconcileAfterFailure = async (noRetry: boolean) => {
+      const sid = sessionForMessage!.id
+      try {
+        const [history, session] = await Promise.all([
+          withTimeout(getConversationHistory(sid), 10000),
+          getSession(sid).catch(() => null),
+        ])
+        const server = mapHistory(history)
+        const saved = server.filter(m => m.role === "user").length > userCountBefore
+        setMessages(prev => {
+          const pendingFailed = prev.filter(m => m.failed && m.id !== userMessage.id)
+          const unsaved: ChatMessage[] = saved ? [] : [{ ...userMessage, failed: true, noRetry }]
+          return mergeLocalMessages(server, [...pendingFailed, ...unsaved])
+        })
+
+        const lastPatient = [...history].reverse().find(m => m.role === "patient")
+        if (session) {
+          setActiveSession(session)
+          const status = session.status ?? (session.ended_at ? "completed" : "active")
+          if (status !== "active") {
+            setSessionStatus(status)
+            const closeDelta = stopSegment()
+            void flushDelta(closeDelta, timerSessionId.current)
+            if (timerSessionId.current) localStorage.removeItem(cpKey(timerSessionId.current))
+          }
+        } else if (lastPatient) {
+          setActiveSession(prev => (prev ? { ...prev, current_severity: lastPatient.severity } : prev))
+        }
+
+        if (saved) {
+          toast.warning("Se perdió la conexión; se recargó la conversación. Tu mensaje sí se guardó.")
+        } else {
+          toast.error("Se perdió la conexión; se recargó la conversación. Tu mensaje no se guardó.")
+        }
+      } catch {
+        // Sin poder consultar al servidor no se sabe si el mensaje se guardó: no se ofrece reintentar
+        setMessages(prev => prev.filter(m => m.id !== assistantId))
+        toast.error("Se perdió la conexión y no se pudo comprobar si el mensaje se envió. Recarga la página para ver el estado real.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    // 400/403/404/409: la sesión está cerrada o el usuario no tiene acceso; reintentar no sirve
+    const isRejection = (err: unknown) => {
+      const status = err instanceof ChatStreamError ? err.status : undefined
+      return status === 400 || status === 403 || status === 404 || status === 409
     }
 
     try {
@@ -729,17 +808,22 @@ function ChatPageContent() {
         }
       })
 
-      handle.onError(() => {
-        failSend("No se pudo obtener la respuesta del paciente.")
+      handle.onError((err) => {
+        if (err instanceof ChatStreamError && err.safeToRetry) {
+          failSend("No se pudo obtener la respuesta del paciente.")
+        } else {
+          void reconcileAfterFailure(false)
+        }
       })
 
       handle.start()
     } catch (err) {
-      const status = err instanceof ChatStreamError ? err.status : undefined
-      const detail = err instanceof Error ? err.message : String(err)
-      // 400/403/404/409: la sesión está cerrada o el usuario no tiene acceso; reintentar no sirve
-      const noRetry = status === 400 || status === 403 || status === 404 || status === 409
-      failSend("No se pudo enviar el mensaje: " + detail, noRetry)
+      if (err instanceof ChatStreamError && err.safeToRetry) {
+        // 429: el servidor no guardó nada
+        failSend("No se pudo enviar el mensaje: " + err.message)
+      } else {
+        void reconcileAfterFailure(isRejection(err))
+      }
     }
   }
 

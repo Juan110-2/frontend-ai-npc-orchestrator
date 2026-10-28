@@ -56,10 +56,22 @@ export type StreamDonePayload = {
 /** Error al abrir el stream (respuesta HTTP no exitosa) con mensaje ya legible. */
 export class ChatStreamError extends Error {
   status?: number
-  constructor(message: string, status?: number) {
+  /** El servidor confirmó que deshizo el turno (evento `error` con `discarded: true`) */
+  discarded: boolean
+  constructor(message: string, status?: number, discarded = false) {
     super(message)
     this.name = 'ChatStreamError'
     this.status = status
+    this.discarded = discarded
+  }
+
+  /**
+   * Solo es seguro reenviar el mensaje si el servidor descartó el turno o rechazó
+   * la petición por límite (429, no se guardó nada). En cualquier otro fallo no se
+   * sabe si el mensaje quedó guardado: hay que consultar al servidor.
+   */
+  get safeToRetry(): boolean {
+    return this.discarded || this.status === 429
   }
 }
 
@@ -150,7 +162,13 @@ export async function connectConversationStream(
             continue // chunk malformado — ignorar
           }
           if (payload.error) {
-            fail(new Error(typeof payload.error === 'string' ? payload.error : 'Error al generar la respuesta'))
+            fail(
+              new ChatStreamError(
+                typeof payload.error === 'string' ? payload.error : 'Error al generar la respuesta',
+                undefined,
+                payload.discarded === true,
+              ),
+            )
             return
           }
           if (payload.chunk && chunkCallback) chunkCallback(payload.chunk)
@@ -168,7 +186,7 @@ export async function connectConversationStream(
         }
       }
       // El stream terminó sin `done` ni error (corte de conexión)
-      if (!settled) fail(new Error('La conexión se cerró antes de completar la respuesta'))
+      if (!settled) fail(new ChatStreamError('La conexión se cerró antes de completar la respuesta'))
     } catch (err) {
       fail(err as Error)
     }
