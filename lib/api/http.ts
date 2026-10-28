@@ -28,6 +28,16 @@ export async function getToken(): Promise<string | null> {
   }
 }
 
+/** Error de una respuesta HTTP no exitosa del backend, con el código de estado. */
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await getToken()
 
@@ -49,7 +59,7 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
     } catch {
       message = text || message
     }
-    throw new Error(message)
+    throw new ApiError(message, response.status)
   }
 
   if (response.status === 204) return undefined as T

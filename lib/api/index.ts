@@ -2,6 +2,7 @@
  * Cliente API del backend, dividido por dominio funcional.
  * Ver lib/api/http.ts para el detalle del flujo de autenticación.
  */
+export { ApiError } from './http'
 export * from './profiles'
 export * from './scenarios'
 export * from './usage'

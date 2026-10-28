@@ -18,6 +18,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
 import { LoadingState } from "@/components/ui-states"
 import {
+  ApiError,
   getActiveRubric,
   getConversationHistory,
   getEvaluation,
@@ -48,10 +49,15 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
     }
     void (async () => {
       setLoading(true)
+      let redirecting = false
       try {
         const [r, e, h] = await Promise.all([
           getActiveRubric(),
-          getEvaluation(sessionId).catch(() => null),
+          getEvaluation(sessionId).catch((err) => {
+            // Sin acceso a la sesión no hay nada que mostrar; cualquier otro fallo se trata como "sin evaluación todavía"
+            if (err instanceof ApiError && err.status === 403) throw err
+            return null
+          }),
           getConversationHistory(sessionId).catch(() => []),
         ])
         setRubric(r)
@@ -65,8 +71,22 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
           setEvaluation(created)
         }
       } catch (err) {
-        toast.error("No se pudo cargar la evaluación: " + String(err))
+        if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+          // Sin acceso o inexistente: se vuelve a la lista en lugar de mostrar la página vacía
+          toast.error(
+            err.status === 404
+              ? "La sesión no existe."
+              : err.message && !/^Error \d+$/.test(err.message)
+                ? err.message
+                : "No tienes acceso a esta evaluación.",
+          )
+          redirecting = true
+          router.replace("/evaluacion")
+          return
+        }
+        toast.error("No se pudo cargar la evaluación: " + (err instanceof Error ? err.message : String(err)))
       } finally {
+        if (!redirecting) setLoading(false)
         setLoading(false)
       }
     })()
