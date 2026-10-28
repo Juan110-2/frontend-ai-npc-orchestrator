@@ -20,6 +20,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { BACKEND_BASE_URL } from '@/lib/api/http';
@@ -55,30 +57,34 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     router.push('/auth/login');
   };
 
+  // Si el navegador no deja usar el portapapeles, el token se muestra en un cuadro para copiarlo a mano.
+  const [manualToken, setManualToken] = React.useState<{ token: string; expiresAt: string | null } | null>(null);
+
+  const openSwagger = () => window.open(`${BACKEND_BASE_URL}/docs`, '_blank', 'noopener,noreferrer');
+
   // Copia el JWT vigente para usarlo en Authorize de Swagger. Sirve con cualquier
   // forma de inicio de sesión (contraseña, enlace mágico o Google).
   const handleCopyToken = async () => {
-    try {
-      const { data: { session } } = await createClient().auth.getSession();
-      if (!session?.access_token) {
-        toast.error('No hay una sesión activa. Inicia sesión de nuevo.');
-        return;
-      }
-      await navigator.clipboard.writeText(session.access_token);
-      const expiresAt = session.expires_at
-        ? new Date(session.expires_at * 1000).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
-        : null;
-      toast.success('Token copiado', {
-        description: `${expiresAt ? `Vence a las ${expiresAt}. ` : ''}No lo compartas. Pégalo en Authorize de Swagger.`,
-        action: {
-          label: 'Abrir Swagger',
-          onClick: () => window.open(`${BACKEND_BASE_URL}/docs`, '_blank', 'noopener,noreferrer'),
-        },
-        duration: 10000,
-      });
-    } catch {
-      toast.error('No se pudo copiar el token.');
+    const { data: { session } } = await createClient().auth.getSession();
+    if (!session?.access_token) {
+      toast.error('No hay una sesión activa. Inicia sesión de nuevo.');
+      return;
     }
+    const expiresAt = session.expires_at
+      ? new Date(session.expires_at * 1000).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
+      : null;
+    try {
+      await navigator.clipboard.writeText(session.access_token);
+    } catch {
+      setMobileOpen(false);
+      setManualToken({ token: session.access_token, expiresAt });
+      return;
+    }
+    toast.success('Token copiado', {
+      description: `${expiresAt ? `Vence a las ${expiresAt}. ` : ''}No lo compartas. Pégalo en Authorize de Swagger.`,
+      action: { label: 'Abrir Swagger', onClick: openSwagger },
+      duration: 10000,
+    });
   };
 
   const copyTokenButton = (compact: boolean) => (
@@ -236,6 +242,30 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
           </Button>
         </div>
       </aside>
+
+      <Dialog open={manualToken !== null} onOpenChange={(open) => !open && setManualToken(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Token de API</DialogTitle>
+            <DialogDescription>
+              El navegador no permitió copiarlo solo. Cópialo con Ctrl+C y pégalo en Authorize de Swagger.
+              {manualToken?.expiresAt && ` Vence a las ${manualToken.expiresAt}.`} No lo compartas.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            readOnly
+            autoFocus
+            value={manualToken?.token ?? ''}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-32 break-all font-mono text-xs"
+            aria-label="Token de API"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={openSwagger}>Abrir Swagger</Button>
+            <Button onClick={() => setManualToken(null)}>Listo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
