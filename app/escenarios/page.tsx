@@ -8,6 +8,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { PageHeader } from '@/components/page-header'
 import { SeverityGauge } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
@@ -28,6 +38,8 @@ export default function EscenariosPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [toDelete, setToDelete] = useState<BackendScenario | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && userRole === 'student') {
@@ -56,14 +68,19 @@ export default function EscenariosPage() {
     )
   }, [items, search])
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este escenario? Solo se puede eliminar si no tiene sesiones registradas.')) return
+  const handleDelete = async () => {
+    if (!toDelete) return
+    setDeleting(true)
     try {
-      await deleteScenario(id)
+      await deleteScenario(toDelete.id)
       toast.success('Escenario eliminado.')
+      setToDelete(null)
       void load()
     } catch (err) {
       toast.error('No se pudo eliminar: ' + String(err))
+      setToDelete(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -198,7 +215,7 @@ export default function EscenariosPage() {
                   </Button>
                   <Button
                     size="sm" variant="ghost"
-                    onClick={() => handleDelete(s.id)}
+                    onClick={() => setToDelete(s)}
                     title="Eliminar"
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -211,6 +228,27 @@ export default function EscenariosPage() {
         </div>
       )}
       <Paginator total={filtered.length} page={page} onPageChange={setPage} />
+
+      <AlertDialog open={toDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar escenario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el escenario «{toDelete?.name}». Solo se puede eliminar si no tiene sesiones registradas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); void handleDelete() }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando…' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

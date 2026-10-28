@@ -9,6 +9,16 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { PageHeader } from '@/components/page-header'
 import { SeverityRange } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
@@ -47,6 +57,8 @@ export default function PerfilesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [toDelete, setToDelete] = useState<BackendProfile | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && userRole === 'student') {
@@ -102,14 +114,19 @@ export default function PerfilesPage() {
     }
   }
 
-  const handleDelete = async (profileId: string) => {
-    if (!confirm('¿Eliminar este perfil? Solo se puede eliminar si no tiene sesiones registradas.')) return
+  const handleDelete = async () => {
+    if (!toDelete) return
+    setDeleting(true)
     try {
-      await deleteProfile(profileId)
+      await deleteProfile(toDelete.id)
       toast.success('Perfil eliminado.')
+      setToDelete(null)
       void load()
     } catch (err) {
       toast.error('No se pudo eliminar: ' + String(err))
+      setToDelete(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -302,7 +319,7 @@ export default function PerfilesPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleDelete(profile.id)}
+                          onClick={() => setToDelete(profile)}
                           title="Eliminar"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -327,6 +344,27 @@ export default function PerfilesPage() {
         </div>
       )}
       <Paginator total={filtered.length} page={page} onPageChange={setPage} />
+
+      <AlertDialog open={toDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el perfil «{toDelete?.name}». Solo se puede eliminar si no tiene sesiones registradas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); void handleDelete() }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando…' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
