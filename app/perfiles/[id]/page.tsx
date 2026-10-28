@@ -12,6 +12,7 @@ import { SeverityGauge } from '@/components/severity-gauge'
 import { FutureFeatureBadge } from '@/components/future-feature-badge'
 import { ErrorState, LoadingState } from '@/components/ui-states'
 import { useAuth } from '@/lib/auth-context'
+import { CASE_EDIT_RESTRICTED_MESSAGE, canManageCase } from '@/lib/case-permissions'
 import { getProfile, type BackendProfile } from '@/lib/api'
 
 type NamedItem = { name: string; description: string }
@@ -66,7 +67,7 @@ function NamedList({ items }: { items: NamedItem[] }) {
 export default function PerfilDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { userRole, isLoading: authLoading } = useAuth()
+  const { user, userRole, isLoading: authLoading } = useAuth()
   const [profile, setProfile] = useState<BackendProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -131,6 +132,7 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
   const regulators = asNamedItems(behavior.regulators)
 
   const subtitle = [age ? `${age} años` : 'Edad sin definir', occupation].filter(Boolean).join(' · ')
+  const canEdit = canManageCase(profile.created_by, user, userRole)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -139,18 +141,27 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
         Volver a perfiles
       </Link>
 
-      <PageHeader title={profile.name} description={subtitle}>
+      <PageHeader
+        title={profile.name}
+        description={subtitle}
+        className={canEdit ? undefined : 'mb-3'}
+      >
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => router.push(`/perfiles/new?cloneFrom=${id}`)}>
             <Copy className="mr-2 h-4 w-4" />
             Duplicar
           </Button>
-          <Button variant="outline" onClick={() => router.push(`/perfiles/${id}/edit`)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
+          {canEdit && (
+            <Button variant="outline" onClick={() => router.push(`/perfiles/${id}/edit`)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+          )}
         </div>
       </PageHeader>
+      {!canEdit && (
+        <p className="text-xs text-muted-foreground">{CASE_EDIT_RESTRICTED_MESSAGE}</p>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

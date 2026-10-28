@@ -12,6 +12,7 @@ import { ErrorState, LoadingState } from '@/components/ui-states';
 import { getScenario } from '@/lib/api';
 import type { Escenario } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
+import { CASE_EDIT_RESTRICTED_MESSAGE, canManageCase } from '@/lib/case-permissions';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', {
@@ -24,8 +25,9 @@ function formatDate(date: Date) {
 export default function EscenarioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   const [escenario, setEscenario] = useState<Escenario | null>(null);
+  const [createdBy, setCreatedBy] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
         };
 
         setEscenario(mappedScenario);
+        setCreatedBy(item.created_by ?? null);
       } catch {
         setEscenario(null);
       } finally {
@@ -87,6 +90,8 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  const canEdit = canManageCase(createdBy, user, userRole);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Link href="/escenarios" className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
@@ -97,17 +102,21 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
       <PageHeader
         title={escenario.name}
         description={escenario.description}
+        className={canEdit ? undefined : 'mb-3'}
         secondaryAction={{
           label: 'Duplicar',
           onClick: () => router.push(`/escenarios/new?cloneFrom=${id}`),
           icon: <Copy className="mr-2 h-4 w-4" />,
         }}
-        action={{
+        action={canEdit ? {
           label: 'Editar',
           onClick: () => router.push(`/escenarios/${id}/edit`),
           icon: <Pencil className="mr-2 h-4 w-4" />,
-        }}
+        } : undefined}
       />
+      {!canEdit && (
+        <p className="text-xs text-muted-foreground">{CASE_EDIT_RESTRICTED_MESSAGE}</p>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
