@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/page-header'
 import { SeverityGauge } from '@/components/severity-gauge'
+import { FutureFeatureBadge } from '@/components/future-feature-badge'
 import { ErrorState, LoadingState } from '@/components/ui-states'
 import { useAuth } from '@/lib/auth-context'
 import { getProfile, type BackendProfile } from '@/lib/api'
@@ -200,7 +201,11 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Disparadores</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Disparadores</CardTitle>
+                <FutureFeatureBadge />
+              </div>
+              <p className="text-xs text-muted-foreground">Aún no influyen en la conversación.</p>
             </CardHeader>
             <CardContent>
               {triggers.length > 0 ? (
@@ -213,7 +218,11 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Reguladores</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Reguladores</CardTitle>
+                <FutureFeatureBadge />
+              </div>
+              <p className="text-xs text-muted-foreground">Aún no influyen en la conversación.</p>
             </CardHeader>
             <CardContent>
               {regulators.length > 0 ? (

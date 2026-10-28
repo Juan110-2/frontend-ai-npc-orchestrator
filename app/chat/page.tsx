@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { FutureFeatureBadge } from "@/components/future-feature-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -186,7 +187,7 @@ function SessionContextPanel({
 
               {triggers.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Disparadores</h4>
+                  <h4 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">Disparadores <FutureFeatureBadge /></h4>
                   <ul className="mt-1 space-y-2">
                     {triggers.map((t) => (
                       <li key={t.name} className="text-sm">
@@ -202,7 +203,7 @@ function SessionContextPanel({
 
               {regulators.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Reguladores</h4>
+                  <h4 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">Reguladores <FutureFeatureBadge /></h4>
                   <ul className="mt-1 space-y-2">
                     {regulators.map((r) => (
                       <li key={r.name} className="text-sm">

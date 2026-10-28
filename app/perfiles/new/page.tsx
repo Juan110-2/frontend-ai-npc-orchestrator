@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { FutureFeatureBadge } from '@/components/future-feature-badge'
 import { Slider } from '@/components/ui/slider'
 import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import {
@@ -943,7 +944,7 @@ export default function WizardPerfilPage() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <Label>Disparadores</Label>
+                <Label className="flex items-center gap-2">Disparadores <FutureFeatureBadge /></Label>
                 <Button type="button" variant="outline" size="sm" onClick={() =>
                   setBehavior({ triggers: [...form.behavior.triggers, { name: '', description: '' }] })
                 }>
@@ -983,7 +984,7 @@ export default function WizardPerfilPage() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <Label>Reguladores</Label>
+                <Label className="flex items-center gap-2">Reguladores <FutureFeatureBadge /></Label>
                 <Button type="button" variant="outline" size="sm" onClick={() =>
                   setBehavior({ regulators: [...form.behavior.regulators, { name: '', description: '' }] })
                 }>
