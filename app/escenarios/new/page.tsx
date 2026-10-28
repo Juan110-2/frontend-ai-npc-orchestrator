@@ -63,7 +63,7 @@ export default function NewEscenarioPage() {
         setName(`${scenario.name} (copia)`);
         setDescription(sourceDescription);
         setSituationContext(scenario.context ?? '');
-        setInitialSeverity(Math.max(1, Math.min(5, scenario.severity || 3)));
+        setInitialSeverity(Math.max(1, Math.min(5, Math.round(scenario.severity || 3))));
         setRiskFlags(Array.isArray(scenario.risk_flags) ? scenario.risk_flags : []);
         setCloneSourceName(scenario.name);
       } catch (err) {
@@ -101,7 +101,7 @@ export default function NewEscenarioPage() {
       await createScenario({
         name,
         context: situationContext,
-        severity: initialSeverity,
+        severity: Math.round(initialSeverity),
         risk_flags: riskFlags,
         constraints: { description },
       });
@@ -180,7 +180,7 @@ export default function NewEscenarioPage() {
                   value={[initialSeverity]}
                   min={1}
                   max={5}
-                  step={0.1}
+                  step={1}
                   onValueChange={(value) => setInitialSeverity(value[0])}
                 />
                 <div className="pt-1">

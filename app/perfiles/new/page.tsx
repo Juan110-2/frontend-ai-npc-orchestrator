@@ -122,7 +122,7 @@ function buildClonedTemplate(profile: BackendProfile, scenario: BackendScenario 
       name: `${scenario.name} (copia)`,
       description: scenarioDescription,
       context: scenario.context ?? '',
-      severity: Math.max(1, Math.min(5, scenario.severity || 3)),
+      severity: Math.max(1, Math.min(5, Math.round(scenario.severity || 3))),
       riskFlags: asStringArray(scenario.risk_flags),
     } : {
       ...BLANK_TEMPLATE.scenario,
@@ -346,7 +346,7 @@ export default function WizardPerfilPage() {
       name: item.name,
       description,
       context: item.context,
-      severity: Math.max(1, Math.min(5, item.severity)),
+      severity: Math.max(1, Math.min(5, Math.round(item.severity))),
       riskFlags: item.risk_flags ?? [],
     })
     setScenarioSearchOpen(false)
@@ -436,14 +436,14 @@ export default function WizardPerfilPage() {
         ? await updateScenario(selectedScenarioId, {
           name: form.scenario.name,
           context: form.scenario.context,
-          severity: form.scenario.severity,
+          severity: Math.round(form.scenario.severity),
           risk_flags: form.scenario.riskFlags,
           constraints: { description: form.scenario.description },
         })
         : await createScenario({
           name: form.scenario.name,
           context: form.scenario.context,
-          severity: form.scenario.severity,
+          severity: Math.round(form.scenario.severity),
           risk_flags: form.scenario.riskFlags,
           constraints: { description: form.scenario.description },
         })
@@ -1135,7 +1135,7 @@ export default function WizardPerfilPage() {
               <Label>Severidad inicial · {formatSeverityNumber(form.scenario.severity)} / 5</Label>
               <Slider
                 value={[form.scenario.severity]}
-                min={1} max={5} step={0.1}
+                min={1} max={5} step={1}
                 onValueChange={(v) => setScenario({ severity: v[0] })}
               />
               <div className="pt-1">

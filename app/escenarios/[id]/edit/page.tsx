@@ -49,7 +49,7 @@ export default function EditarEscenarioPage() {
         setName(s.name)
         setDescription(typeof constraints.description === 'string' ? constraints.description : '')
         setContext(s.context)
-        setSeverity(s.severity)
+        setSeverity(Math.max(1, Math.min(5, Math.round(s.severity || 3))))
         setRiskFlags(s.risk_flags ?? [])
         setConstraintsExtras(
           Object.fromEntries(
@@ -86,7 +86,7 @@ export default function EditarEscenarioPage() {
       await updateScenario(id, {
         name,
         context,
-        severity,
+        severity: Math.round(severity),
         risk_flags: riskFlags,
         constraints,
       })
@@ -153,7 +153,7 @@ export default function EditarEscenarioPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Severidad inicial · {formatSeverityNumber(severity)} / 5</Label>
-              <Slider value={[severity]} min={1} max={5} step={0.1} onValueChange={(v) => setSeverity(v[0])} />
+              <Slider value={[severity]} min={1} max={5} step={1} onValueChange={(v) => setSeverity(v[0])} />
               <div className="pt-1">
                 <SeverityGauge level={severity} size="md" showLabel />
               </div>
