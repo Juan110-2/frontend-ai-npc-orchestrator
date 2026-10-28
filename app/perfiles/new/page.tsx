@@ -39,7 +39,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  createProfile, createScenario, getProfile, listScenarios, startSession, listStudents, updateScenario,
+  createProfile, createScenario, getProfile, listScenarios, startSession, listStudents,
   type BackendProfile, type BackendScenario, type BackendUserProfile,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
@@ -71,6 +71,23 @@ type CloneState = {
   sourceName: string
 }
 
+type ScenarioValues = ProfileTemplate['scenario']
+
+// Escenario existente elegido en el formulario, con los valores originales
+// para saber si el docente los modificó antes de guardar.
+type ExistingScenario = {
+  id: string
+  original: ScenarioValues
+}
+
+type ScenarioOutcome = 'created' | 'reused' | 'copied'
+
+const SCENARIO_NOTE: Record<ScenarioOutcome, string> = {
+  created: 'Se creó un escenario nuevo.',
+  reused: 'Se usó el escenario existente sin cambios.',
+  copied: 'Se creó un escenario nuevo con tus cambios y el original no cambió.',
+}
+
 function asStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -93,12 +110,31 @@ function asBehaviorItems(value: unknown): { name: string; description: string }[
   })
 }
 
-function buildClonedTemplate(profile: BackendProfile, scenario: BackendScenario | null): ProfileTemplate {
+function scenarioToFormValues(item: BackendScenario): ScenarioValues {
+  return {
+    name: item.name,
+    description: typeof item.constraints?.description === 'string' ? item.constraints.description : '',
+    context: item.context ?? '',
+    severity: Math.max(1, Math.min(5, Math.round(item.severity ?? 3))),
+    riskFlags: asStringArray(item.risk_flags),
+  }
+}
+
+// Compara contra los valores originales: nombre, contexto, descripción,
+// severidad redondeada y banderas (sin importar el orden).
+function scenarioWasModified(original: ScenarioValues, current: ScenarioValues): boolean {
+  if (original.name !== current.name) return true
+  if (original.context !== current.context) return true
+  if (original.description !== current.description) return true
+  if (Math.round(original.severity) !== Math.round(current.severity)) return true
+  const a = [...original.riskFlags].sort()
+  const b = [...current.riskFlags].sort()
+  return a.length !== b.length || a.some((flag, i) => flag !== b[i])
+}
+
+function buildClonedTemplate(profile: BackendProfile): ProfileTemplate {
   const traits = (profile.traits ?? {}) as Record<string, unknown>
   const behavior = (profile.behavior ?? {}) as Record<string, unknown>
-  const scenarioDescription = typeof scenario?.constraints?.description === 'string'
-    ? scenario.constraints.description
-    : ''
 
   return {
     ...BLANK_TEMPLATE,
@@ -119,13 +155,8 @@ function buildClonedTemplate(profile: BackendProfile, scenario: BackendScenario 
       personality: asStringArray(traits.personality),
       communicationStyle: asStringArray(traits.communication_style),
     },
-    scenario: scenario ? {
-      name: `${scenario.name} (copia)`,
-      description: scenarioDescription,
-      context: scenario.context ?? '',
-      severity: Math.max(1, Math.min(5, Math.round(scenario.severity || 3))),
-      riskFlags: asStringArray(scenario.risk_flags),
-    } : {
+    // Clonar copia solo el perfil: el escenario se elige o se crea en su paso.
+    scenario: {
       ...BLANK_TEMPLATE.scenario,
     },
     behavior: {
@@ -218,7 +249,8 @@ export default function WizardPerfilPage() {
   const [scenarioOptions, setScenarioOptions] = useState<BackendScenario[]>([])
   const [scenarioQuery, setScenarioQuery] = useState('')
   const [scenarioLoading, setScenarioLoading] = useState(false)
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
+  const [existingScenario, setExistingScenario] = useState<ExistingScenario | null>(null)
+  const selectedScenarioId = existingScenario?.id ?? null
 
   // Estado de asignación
   const [assignMode, setAssignMode] = useState<AssignMode>('self')
@@ -232,11 +264,14 @@ export default function WizardPerfilPage() {
   const [form, setForm] = useState<ProfileTemplate>(BLANK_TEMPLATE)
 
   const hasScenario = !!form.scenario.name.trim()
+  const scenarioModified = existingScenario
+    ? scenarioWasModified(existingScenario.original, form.scenario)
+    : false
 
   // Navegación entre pasos
 
   const applyTemplate = (tpl: ProfileTemplate) => {
-    setSelectedScenarioId(null)
+    setExistingScenario(null)
     setForm(tpl)
     setStepIndex(1)
   }
@@ -277,7 +312,7 @@ export default function WizardPerfilPage() {
   const setScenario = (patch: Partial<ProfileTemplate['scenario']>) =>
     setForm((f) => ({ ...f, scenario: { ...f.scenario, ...patch } }))
   const resetScenario = () => {
-    setSelectedScenarioId(null)
+    setExistingScenario(null)
     setScenario({ name: '', description: '', context: '', severity: 3, riskFlags: [] })
     setDraftRiskFlag('')
   }
@@ -295,18 +330,11 @@ export default function WizardPerfilPage() {
     void (async () => {
       try {
         setCloneLoading(true)
-        const [profile, scenarios] = await Promise.all([
-          getProfile(cloneFrom),
-          listScenarios(),
-        ])
+        const profile = await getProfile(cloneFrom)
         if (!active) return
 
-        const traits = (profile.traits ?? {}) as Record<string, unknown>
-        const caseName = typeof traits.case_name === 'string' ? traits.case_name : ''
-        const matchedScenario = scenarios.find((item) => item.name === caseName) ?? null
-
-        setForm(buildClonedTemplate(profile, matchedScenario))
-        setSelectedScenarioId(matchedScenario?.id ?? null)
+        setForm(buildClonedTemplate(profile))
+        setExistingScenario(null)
         setCloneState({ sourceId: profile.id, sourceName: profile.name })
         setStepIndex(1)
       } catch (err) {
@@ -340,16 +368,9 @@ export default function WizardPerfilPage() {
   }, [scenarioSearchOpen, scenarioOptions.length])
 
   const applyScenario = (item: BackendScenario) => {
-    const description = typeof item.constraints?.description === 'string'
-      ? item.constraints.description : ''
-    setSelectedScenarioId(item.id)
-    setScenario({
-      name: item.name,
-      description,
-      context: item.context,
-      severity: Math.max(1, Math.min(5, Math.round(item.severity))),
-      riskFlags: item.risk_flags ?? [],
-    })
+    const values = scenarioToFormValues(item)
+    setExistingScenario({ id: item.id, original: values })
+    setScenario({ ...values })
     setScenarioSearchOpen(false)
   }
 
@@ -433,29 +454,30 @@ export default function WizardPerfilPage() {
         return
       }
 
-      const scenario = selectedScenarioId
-        ? await updateScenario(selectedScenarioId, {
-          name: form.scenario.name,
+      // Este formulario nunca modifica un escenario existente: si no cambió se
+      // reutiliza tal cual, y si cambió se crea uno nuevo con los valores del formulario.
+      let scenarioId: string
+      let outcome: ScenarioOutcome
+      if (existingScenario && !scenarioModified) {
+        scenarioId = existingScenario.id
+        outcome = 'reused'
+      } else {
+        const sameNameAsOriginal = !!existingScenario && form.scenario.name === existingScenario.original.name
+        const created = await createScenario({
+          name: sameNameAsOriginal ? `${form.scenario.name} (copia)` : form.scenario.name,
           context: form.scenario.context,
           severity: Math.round(form.scenario.severity),
           risk_flags: form.scenario.riskFlags,
           constraints: { description: form.scenario.description },
         })
-        : await createScenario({
-          name: form.scenario.name,
-          context: form.scenario.context,
-          severity: Math.round(form.scenario.severity),
-          risk_flags: form.scenario.riskFlags,
-          constraints: { description: form.scenario.description },
-        })
+        scenarioId = created.id
+        outcome = existingScenario ? 'copied' : 'created'
+      }
+      const scenarioNote = SCENARIO_NOTE[outcome]
 
       if (assignMode === 'self') {
-        const session = await startSession({ profile_id: profile.id, scenario_id: scenario.id })
-        toast.success(
-          selectedScenarioId
-            ? 'Perfil creado y vinculado al escenario existente.'
-            : 'Perfil, escenario y sesión creados.'
-        )
+        const session = await startSession({ profile_id: profile.id, scenario_id: scenarioId })
+        toast.success(`Perfil y sesión creados. ${scenarioNote}`)
         if (selfSessionMode === 'now') {
           router.push(`/chat?sesion=${session.id}`)
         } else {
@@ -464,14 +486,14 @@ export default function WizardPerfilPage() {
       } else {
         await Promise.all(
           selectedStudentIds.map((studentId) =>
-            startSession({ profile_id: profile.id, scenario_id: scenario.id, user_id: studentId })
+            startSession({ profile_id: profile.id, scenario_id: scenarioId, user_id: studentId })
           )
         )
-        toast.success(`Sesiones asignadas a ${selectedStudentIds.length} estudiante(s).`)
+        toast.success(`Sesiones asignadas a ${selectedStudentIds.length} estudiante(s). ${scenarioNote}`)
         router.push('/perfiles')
       }
     } catch (err) {
-      toast.error('No se pudo crear: ' + String(err))
+      toast.error('No se pudo crear: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setSubmitting(false)
     }
@@ -744,7 +766,9 @@ export default function WizardPerfilPage() {
                     )}
                     {selectedScenarioId && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Al guardar, este mismo escenario existente se mantendrá y se actualizará con los cambios que hagas aquí.
+                        {scenarioModified
+                          ? 'Modificaste un escenario existente: al guardar se creará un escenario nuevo con estos cambios y el original no cambia.'
+                          : 'Se usará este escenario tal como está.'}
                       </p>
                     )}
                   </div>
