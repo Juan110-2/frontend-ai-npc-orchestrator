@@ -222,10 +222,10 @@ export default function PerfilesPage() {
                         {age ? `${age} años` : 'Edad sin definir'}
                         {occupation ? ` · ${occupation}` : ''}
                       </p>
+                      {!!user && profile.created_by === user.id && (
+                        <Badge variant="outline" className="mt-1 text-xs text-muted-foreground">Tuyo</Badge>
+                      )}
                     </div>
-                    {!!user && profile.created_by === user.id && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Tuyo</Badge>
-                    )}
                   </div>
 
                   <p className="mb-3 line-clamp-2 text-sm">{profile.description}</p>
@@ -311,7 +311,7 @@ export default function PerfilesPage() {
                         )}
                       </div>
 
-                      <div className="flex w-full items-center justify-between sm:ml-auto sm:w-auto sm:justify-end sm:gap-1">
+                      <div className="flex w-full flex-wrap items-center gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -352,7 +352,7 @@ export default function PerfilesPage() {
                           size="sm"
                           variant="default"
                           onClick={() => handlePractice(profile.id)}
-                          className="shrink-0"
+                          className="ml-auto shrink-0"
                         >
                           <Play className="mr-1 h-3 w-3" />
                           Practicar

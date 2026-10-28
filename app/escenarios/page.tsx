@@ -164,10 +164,10 @@ export default function EscenariosPage() {
                         ? `${riskFlags.length} riesgo${riskFlags.length === 1 ? '' : 's'} visible${riskFlags.length === 1 ? '' : 's'}`
                         : 'Sin banderas de riesgo'}
                     </p>
+                    {!!user && s.created_by === user.id && (
+                      <Badge variant="outline" className="mt-1 text-xs text-muted-foreground">Tuyo</Badge>
+                    )}
                   </div>
-                  {!!user && s.created_by === user.id && (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">Tuyo</Badge>
-                  )}
                 </div>
 
                 <p className="mb-3 line-clamp-3 text-sm">
