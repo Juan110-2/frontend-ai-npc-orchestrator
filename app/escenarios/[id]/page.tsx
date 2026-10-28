@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Copy, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +97,11 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
       <PageHeader
         title={escenario.name}
         description={escenario.description}
+        secondaryAction={{
+          label: 'Duplicar',
+          onClick: () => router.push(`/escenarios/new?cloneFrom=${id}`),
+          icon: <Copy className="mr-2 h-4 w-4" />,
+        }}
         action={{
           label: 'Editar',
           onClick: () => router.push(`/escenarios/${id}/edit`),
@@ -120,7 +125,7 @@ export default function EscenarioDetailPage({ params }: { params: Promise<{ id: 
               <CardTitle className="text-base">Banderas de riesgo</CardTitle>
               <CardDescription>
                 Rasgos permanentes del personaje: se agregan como información de contexto en su
-                prompt ("Indicadores presentes: ..."), no son un estado que cambie durante la
+                prompt (&quot;Indicadores presentes: ...&quot;), no son un estado que cambie durante la
                 conversación.
               </CardDescription>
             </CardHeader>
