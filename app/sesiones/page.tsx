@@ -36,6 +36,7 @@ import {
 } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { OwnerFilterTabs, useOwnerFilter } from '@/components/owner-filter';
 import { Paginator, PAGE_SIZE } from '@/components/paginator';
 
 function formatDate(date: Date) {
@@ -88,9 +89,13 @@ function NuevaSesionDialog({
   onSessionCreated?: () => void
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [open, setOpen] = useState(false);
   const [profileSearch, setProfileSearch] = useState('');
   const [scenarioSearch, setScenarioSearch] = useState('');
+  const [profileOwner, setProfileOwner] = useOwnerFilter('sesiones:perfil-filter');
+  const [scenarioOwner, setScenarioOwner] = useOwnerFilter('sesiones:escenario-filter');
   const [selectedProfile, setSelectedProfile] = useState<BackendProfile | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<BackendScenario | null>(null);
   const [assignMode, setAssignMode] = useState<AssignMode>('self');
@@ -128,15 +133,19 @@ function NuevaSesionDialog({
     })();
   }, [open, assignMode, students.length, studentsLoading]);
 
+  const isOwn = (createdBy?: string | null) => !!currentUserId && createdBy === currentUserId;
+
   const filteredProfiles = profiles.filter(p =>
-    !profileSearch.trim() ||
-    p.name.toLowerCase().includes(profileSearch.toLowerCase()) ||
-    p.description.toLowerCase().includes(profileSearch.toLowerCase())
+    (profileOwner === 'all' || isOwn(p.created_by)) &&
+    (!profileSearch.trim() ||
+      p.name.toLowerCase().includes(profileSearch.toLowerCase()) ||
+      p.description.toLowerCase().includes(profileSearch.toLowerCase()))
   );
 
   const filteredScenarios = scenarios.filter(s =>
-    !scenarioSearch.trim() ||
-    s.name.toLowerCase().includes(scenarioSearch.toLowerCase())
+    (scenarioOwner === 'all' || isOwn(s.created_by)) &&
+    (!scenarioSearch.trim() ||
+      s.name.toLowerCase().includes(scenarioSearch.toLowerCase()))
   );
 
   const filteredStudents = students.filter(s => {
@@ -227,6 +236,13 @@ function NuevaSesionDialog({
               {/* Perfil */}
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">Perfil</p>
+                <OwnerFilterTabs
+                  value={profileOwner}
+                  onChange={setProfileOwner}
+                  mineCount={profiles.filter(p => isOwn(p.created_by)).length}
+                  allCount={profiles.length}
+                  className="mb-0"
+                />
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -272,7 +288,12 @@ function NuevaSesionDialog({
                             {initials(p.name) || '·'}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">{p.name}</p>
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <p className="truncate text-sm font-semibold">{p.name}</p>
+                              {profileOwner === 'all' && isOwn(p.created_by) && (
+                                <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] font-normal text-muted-foreground">Tuyo</Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {age ? `${age} años` : 'Edad sin definir'}
                             </p>
@@ -317,6 +338,13 @@ function NuevaSesionDialog({
               {/* Escenario */}
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">Escenario</p>
+                <OwnerFilterTabs
+                  value={scenarioOwner}
+                  onChange={setScenarioOwner}
+                  mineCount={scenarios.filter(s => isOwn(s.created_by)).length}
+                  allCount={scenarios.length}
+                  className="mb-0"
+                />
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -342,7 +370,12 @@ function NuevaSesionDialog({
                           )}
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold leading-snug">{s.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold leading-snug">{s.name}</p>
+                              {scenarioOwner === 'all' && isOwn(s.created_by) && (
+                                <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] font-normal text-muted-foreground">Tuyo</Badge>
+                              )}
+                            </div>
                             {s.context && (
                               <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.context}</p>
                             )}

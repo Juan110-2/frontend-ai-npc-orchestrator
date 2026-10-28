@@ -90,7 +90,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
         setLoading(false)
       }
     })()
-  }, [sessionId])
+  }, [sessionId, router])
 
   const handleScoreChange = (key: string, value: number) => {
     setScores((prev) => ({ ...prev, [key]: value }))

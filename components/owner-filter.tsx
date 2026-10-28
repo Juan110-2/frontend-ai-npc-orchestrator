@@ -39,11 +39,13 @@ export function OwnerFilterTabs({
   onChange,
   mineCount,
   allCount,
+  className,
 }: {
   value: OwnerFilter
   onChange: (value: OwnerFilter) => void
   mineCount: number
   allCount: number
+  className?: string
 }) {
   const options: { id: OwnerFilter; label: string }[] = [
     { id: 'mine', label: `Mis casos (${mineCount})` },
@@ -51,10 +53,11 @@ export function OwnerFilterTabs({
   ]
 
   return (
-    <div className="mb-5 flex border-b">
+    <div className={cn('mb-5 flex border-b', className)}>
       {options.map((opt) => (
         <button
           key={opt.id}
+          type="button"
           onClick={() => onChange(opt.id)}
           className={cn(
             'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',

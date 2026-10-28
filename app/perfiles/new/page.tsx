@@ -43,6 +43,7 @@ import {
   type BackendProfile, type BackendScenario, type BackendUserProfile,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import { OwnerFilterTabs, useOwnerFilter } from '@/components/owner-filter'
 import {
   PROFILE_TEMPLATES,
   BLANK_TEMPLATE,
@@ -250,6 +251,7 @@ export default function WizardPerfilPage() {
   const [scenarioSearchOpen, setScenarioSearchOpen] = useState(false)
   const [scenarioOptions, setScenarioOptions] = useState<BackendScenario[]>([])
   const [scenarioQuery, setScenarioQuery] = useState('')
+  const [scenarioOwner, setScenarioOwner] = useOwnerFilter('perfiles-new:escenario-filter')
   const [scenarioLoading, setScenarioLoading] = useState(false)
   const [existingScenario, setExistingScenario] = useState<ExistingScenario | null>(null)
   const selectedScenarioId = existingScenario?.id ?? null
@@ -1236,6 +1238,13 @@ export default function WizardPerfilPage() {
             <DialogDescription>Selecciona un escenario existente para este perfil.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <OwnerFilterTabs
+              value={scenarioOwner}
+              onChange={setScenarioOwner}
+              mineCount={scenarioOptions.filter((item) => !!user && item.created_by === user.id).length}
+              allCount={scenarioOptions.length}
+              className="mb-0"
+            />
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -1254,6 +1263,7 @@ export default function WizardPerfilPage() {
               ) : (
                 scenarioOptions
                   .filter((item) => {
+                    if (scenarioOwner === 'mine' && (!user || item.created_by !== user.id)) return false
                     if (!scenarioQuery.trim()) return true
                     const q = scenarioQuery.toLowerCase()
                     return item.name.toLowerCase().includes(q) || item.context.toLowerCase().includes(q)
@@ -1266,8 +1276,13 @@ export default function WizardPerfilPage() {
                       className="w-full rounded-md border px-3 py-2 text-left transition hover:border-primary hover:bg-primary/5"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium">{item.name}</p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{item.name}</p>
+                            {scenarioOwner === 'all' && !!user && item.created_by === user.id && (
+                              <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] font-normal text-muted-foreground">Tuyo</Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground line-clamp-2">{item.context}</p>
                         </div>
                         <SeverityGauge level={Math.max(1, Math.min(5, item.severity))} size="sm" />
