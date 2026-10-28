@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { CaseUsage } from './usage'
 
 export type BackendScenario = {
   id: string
@@ -49,4 +50,8 @@ export async function updateScenario(
 
 export async function deleteScenario(scenarioId: string) {
   return request<void>(`/scenarios/${scenarioId}/delete`, { method: 'DELETE' })
+}
+
+export async function getScenarioUsage(scenarioId: string) {
+  return request<CaseUsage>(`/scenarios/${scenarioId}/usage`)
 }

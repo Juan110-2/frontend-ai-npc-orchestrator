@@ -4,6 +4,7 @@
  */
 export * from './profiles'
 export * from './scenarios'
+export * from './usage'
 export * from './sessions'
 export * from './chat'
 export * from './admin'

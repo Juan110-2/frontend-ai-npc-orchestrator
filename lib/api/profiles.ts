@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { CaseUsage } from './usage'
 
 export type BackendProfile = {
   id: string
@@ -47,4 +48,8 @@ export async function updateProfile(
 
 export async function deleteProfile(profileId: string) {
   return request<void>(`/profiles/${profileId}/delete`, { method: 'DELETE' })
+}
+
+export async function getProfileUsage(profileId: string) {
+  return request<CaseUsage>(`/profiles/${profileId}/usage`)
 }
