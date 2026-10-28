@@ -42,7 +42,7 @@ export function DeleteCaseDialog({ kind, target, deleting, getUsage, onConfirm, 
   }, [targetId])
 
   const checking = target !== null && result?.id !== targetId
-  const usage = result?.id === targetId ? result.usage : null
+  const usage = result && result.id === targetId ? result.usage : null
   const name = target?.name
   const withActivity = usage?.sessions_with_activity ?? 0
   const unused = usage?.unused_sessions ?? 0
