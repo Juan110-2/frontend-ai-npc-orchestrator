@@ -16,15 +16,19 @@ import { toast } from 'sonner'
 import { getScenario, updateScenario } from '@/lib/api'
 import { LoadingState } from '@/components/ui-states'
 import { useAuth } from '@/lib/auth-context'
+import { canManageCase } from '@/lib/case-permissions'
+import { CaseEditRestricted } from '@/components/case-edit-restricted'
 
 export default function EditarEscenarioPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const id = params?.id as string
-  const { userRole, isLoading: authLoading } = useAuth()
+  const { user, userRole, isLoading: authLoading } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // undefined = el escenario aún no se cargó
+  const [createdBy, setCreatedBy] = useState<string | null | undefined>(undefined)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -46,6 +50,7 @@ export default function EditarEscenarioPage() {
         const constraints = (s.constraints ?? {}) as Record<string, unknown>
         const knownKeys = new Set(['description'])
 
+        setCreatedBy(s.created_by ?? null)
         setName(s.name)
         setDescription(typeof constraints.description === 'string' ? constraints.description : '')
         setContext(s.context)
@@ -93,7 +98,7 @@ export default function EditarEscenarioPage() {
       toast.success('Escenario actualizado.')
       router.push('/escenarios')
     } catch (err) {
-      toast.error('No se pudo guardar: ' + String(err))
+      toast.error('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setSaving(false)
     }
@@ -106,6 +111,16 @@ export default function EditarEscenarioPage() {
       <div className="container mx-auto p-6">
         <Card><CardContent><LoadingState className="py-8" /></CardContent></Card>
       </div>
+    )
+  }
+
+  if (createdBy !== undefined && !canManageCase(createdBy, user, userRole)) {
+    return (
+      <CaseEditRestricted
+        backHref="/escenarios"
+        backLabel="Volver a escenarios"
+        cloneHref={`/escenarios/new?cloneFrom=${id}`}
+      />
     )
   }
 

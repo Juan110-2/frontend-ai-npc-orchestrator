@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils'
 import { LoadingState } from '@/components/ui-states'
 import { formatSeverityNumber, SeverityGauge } from '@/components/severity-gauge'
 import { useAuth } from '@/lib/auth-context'
+import { canManageCase } from '@/lib/case-permissions'
+import { CaseEditRestricted } from '@/components/case-edit-restricted'
 import { getProfile, updateProfile } from '@/lib/api'
 
 type ChipsProps = {
@@ -73,11 +75,13 @@ export default function EditarPerfilPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const id = params?.id as string
-  const { userRole, isLoading: authLoading } = useAuth()
+  const { user, userRole, isLoading: authLoading } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
+  // undefined = el perfil aún no se cargó
+  const [createdBy, setCreatedBy] = useState<string | null | undefined>(undefined)
 
   // Identidad
   const [name, setName] = useState('')
@@ -113,6 +117,7 @@ export default function EditarPerfilPage() {
         const p = await getProfile(id)
         const t = (p.traits ?? {}) as any
         const b = (p.behavior ?? {}) as any
+        setCreatedBy(p.created_by ?? null)
         setName(p.name ?? '')
         setIdentityName(t.identity_name ?? p.name ?? '')
         setAge(Number(t.age ?? 25))
@@ -154,7 +159,7 @@ export default function EditarPerfilPage() {
       toast.success('Cambios guardados.')
       router.push('/perfiles')
     } catch (err) {
-      toast.error('No se pudo guardar: ' + String(err))
+      toast.error('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setSaving(false)
     }
@@ -167,6 +172,16 @@ export default function EditarPerfilPage() {
       <div className="container mx-auto p-6">
         <Card><CardContent><LoadingState className="py-8" /></CardContent></Card>
       </div>
+    )
+  }
+
+  if (createdBy !== undefined && !canManageCase(createdBy, user, userRole)) {
+    return (
+      <CaseEditRestricted
+        backHref="/perfiles"
+        backLabel="Volver a perfiles"
+        cloneHref={`/perfiles/new?cloneFrom=${id}`}
+      />
     )
   }
 
