@@ -83,10 +83,15 @@ function NuevaSesionDialog({
   profiles,
   scenarios,
   onSessionCreated,
+  launch,
+  onLaunchHandled,
 }: {
   profiles: BackendProfile[]
   scenarios: BackendScenario[]
   onSessionCreated?: () => void
+  /** Si llega un valor, abre el modal con ese perfil preseleccionado (si existe). */
+  launch?: { profileId: string | null } | null
+  onLaunchHandled?: () => void
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -134,6 +139,20 @@ function NuevaSesionDialog({
   }, [open, assignMode, students.length, studentsLoading]);
 
   const isOwn = (createdBy?: string | null) => !!currentUserId && createdBy === currentUserId;
+
+  useEffect(() => {
+    if (!launch) return;
+    const preset = launch.profileId ? profiles.find(p => p.id === launch.profileId) : undefined;
+    setOpen(true);
+    if (preset) {
+      setSelectedProfile(preset);
+      // Evita que el filtro "Mis casos" oculte el perfil preseleccionado.
+      if (profileOwner === 'mine' && !isOwn(preset.created_by)) setProfileOwner('all');
+    }
+    onLaunchHandled?.();
+    // Se ejecuta solo cuando llega una nueva solicitud de apertura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [launch]);
 
   const filteredProfiles = profiles.filter(p =>
     (profileOwner === 'all' || isOwn(p.created_by)) &&
@@ -702,6 +721,7 @@ function mapSession(
 }
 
 export default function SesionesPage() {
+  const router = useRouter();
   const { userRole, user, isLoading: authLoading } = useAuth();
   const currentUserId = user?.id ?? null;
 
@@ -735,6 +755,9 @@ export default function SesionesPage() {
   const [staffMap, setStaffMap] = useState<Map<string, BackendUserProfile>>(new Map());
 
   const [activeSection, setActiveSection] = useState<'mine' | 'assigned' | 'all'>('mine');
+
+  // ── apertura del modal desde /perfiles ("Practicar") ───────────────────────
+  const [launch, setLaunch] = useState<{ profileId: string | null } | null>(null);
 
   const [mySearch, setMySearch] = useState('');
   const [myTab, setMyTab] = useState('all');
@@ -875,6 +898,15 @@ export default function SesionesPage() {
   // Los estudiantes no crean sesiones: solo realizan las que les asignan
   const canCreateSession = !authLoading && isTeacherOrAdmin;
 
+  // Lee ?nueva=1&perfil=<id>, abre el modal y limpia la URL para que recargar no lo reabra.
+  useEffect(() => {
+    if (!refLoaded || !canCreateSession) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('nueva') !== '1') return;
+    setLaunch({ profileId: params.get('perfil') });
+    router.replace('/sesiones');
+  }, [refLoaded, canCreateSession, router]);
+
   // Build assigner/assignee option lists from currently loaded sessions
   const uniqueAssigners = isAll ? (() => {
     const map = new Map<string, string>();
@@ -916,7 +948,13 @@ export default function SesionesPage() {
         description="Historial de sesiones de simulación y chats activos"
       >
         {canCreateSession && (
-          <NuevaSesionDialog profiles={availableProfiles} scenarios={availableScenarios} onSessionCreated={refreshAll} />
+          <NuevaSesionDialog
+            profiles={availableProfiles}
+            scenarios={availableScenarios}
+            onSessionCreated={refreshAll}
+            launch={launch}
+            onLaunchHandled={() => setLaunch(null)}
+          />
         )}
       </PageHeader>
 

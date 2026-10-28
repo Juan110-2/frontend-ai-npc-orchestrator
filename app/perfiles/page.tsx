@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { canManageCase } from '@/lib/case-permissions'
 import {
-  deleteProfile, getProfileUsage, listProfiles, listScenarios, startSession,
+  deleteProfile, getProfileUsage, listProfiles, listScenarios,
   type BackendProfile, type BackendScenario,
 } from '@/lib/api'
 
@@ -101,20 +101,9 @@ export default function PerfilesPage() {
     )
   }, [items, search, owner, user])
 
-  const handlePractice = async (profileId: string) => {
-    // Necesitamos un escenario para iniciar sesión. Si no hay vinculado,
-    // usamos el primero disponible. (Mejor mejora en otra iteración: selector.)
-    const list = await listScenarios()
-    if (list.length === 0) {
-      toast.error('No hay escenarios. Crea uno primero.')
-      return
-    }
-    try {
-      const session = await startSession({ profile_id: profileId, scenario_id: list[0].id })
-      router.push(`/chat?sesion=${session.id}`)
-    } catch (err) {
-      toast.error('No se pudo iniciar la sesión: ' + String(err))
-    }
+  // El docente elige el escenario y si practica o asigna desde el modal de /sesiones.
+  const handlePractice = (profileId: string) => {
+    router.push(`/sesiones?nueva=1&perfil=${encodeURIComponent(profileId)}`)
   }
 
   const handleDelete = async () => {
