@@ -3,19 +3,15 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Copy, Pencil, Play } from 'lucide-react'
+import { ArrowLeft, Copy, Pencil } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/page-header'
 import { SeverityGauge } from '@/components/severity-gauge'
 import { ErrorState, LoadingState } from '@/components/ui-states'
-import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
-import {
-  getProfile, listScenarios, startSession,
-  type BackendProfile, type BackendScenario,
-} from '@/lib/api'
+import { getProfile, type BackendProfile } from '@/lib/api'
 
 type NamedItem = { name: string; description: string }
 
@@ -71,9 +67,7 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter()
   const { userRole, isLoading: authLoading } = useAuth()
   const [profile, setProfile] = useState<BackendProfile | null>(null)
-  const [scenario, setScenario] = useState<BackendScenario | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     if (authLoading) return
@@ -86,18 +80,6 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
         setIsLoading(true)
         const item = await getProfile(id)
         setProfile(item)
-
-        const caseName = (item.traits as Record<string, unknown> | undefined)?.case_name
-        if (typeof caseName === 'string' && caseName) {
-          try {
-            const scenarios = await listScenarios()
-            setScenario(scenarios.find((s) => s.name === caseName) ?? null)
-          } catch {
-            setScenario(null)
-          }
-        } else {
-          setScenario(null)
-        }
       } catch {
         setProfile(null)
       } finally {
@@ -105,18 +87,6 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
       }
     })()
   }, [id, authLoading, userRole, router])
-
-  const handlePractice = async () => {
-    if (!scenario) return
-    setStarting(true)
-    try {
-      const session = await startSession({ profile_id: id, scenario_id: scenario.id })
-      router.push(`/chat?sesion=${session.id}`)
-    } catch (err) {
-      toast.error('No se pudo iniciar la sesión: ' + String(err))
-      setStarting(false)
-    }
-  }
 
   if (authLoading || userRole === 'student') return null
 
@@ -178,12 +148,6 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
             <Pencil className="mr-2 h-4 w-4" />
             Editar
           </Button>
-          {scenario && (
-            <Button onClick={() => { void handlePractice() }} disabled={starting}>
-              <Play className="mr-2 h-4 w-4" />
-              Practicar
-            </Button>
-          )}
         </div>
       </PageHeader>
 
@@ -302,27 +266,6 @@ export default function PerfilDetailPage({ params }: { params: Promise<{ id: str
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Escenario vinculado</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {scenario ? (
-                <div className="space-y-3">
-                  <Link
-                    href={`/escenarios/${scenario.id}`}
-                    className="text-sm font-medium hover:underline"
-                  >
-                    {scenario.name}
-                  </Link>
-                  <p className="line-clamp-3 text-sm text-muted-foreground">{scenario.context}</p>
-                  <SeverityGauge level={scenario.severity} size="sm" showValue />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Este perfil no tiene un escenario vinculado.</p>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
