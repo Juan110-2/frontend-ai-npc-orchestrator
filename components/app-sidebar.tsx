@@ -14,11 +14,15 @@ import {
   Menu,
   Shield,
   BarChart3,
+  KeyRound,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import { BACKEND_BASE_URL } from '@/lib/api/http';
 
 const navigation = [
   { name: 'Inicio', href: '/', icon: LayoutDashboard },
@@ -50,6 +54,48 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
     await logout();
     router.push('/auth/login');
   };
+
+  // Copia el JWT vigente para usarlo en Authorize de Swagger. Sirve con cualquier
+  // forma de inicio de sesión (contraseña, enlace mágico o Google).
+  const handleCopyToken = async () => {
+    try {
+      const { data: { session } } = await createClient().auth.getSession();
+      if (!session?.access_token) {
+        toast.error('No hay una sesión activa. Inicia sesión de nuevo.');
+        return;
+      }
+      await navigator.clipboard.writeText(session.access_token);
+      const expiresAt = session.expires_at
+        ? new Date(session.expires_at * 1000).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
+        : null;
+      toast.success('Token copiado', {
+        description: `${expiresAt ? `Vence a las ${expiresAt}. ` : ''}No lo compartas. Pégalo en Authorize de Swagger.`,
+        action: {
+          label: 'Abrir Swagger',
+          onClick: () => window.open(`${BACKEND_BASE_URL}/docs`, '_blank', 'noopener,noreferrer'),
+        },
+        duration: 10000,
+      });
+    } catch {
+      toast.error('No se pudo copiar el token.');
+    }
+  };
+
+  const copyTokenButton = (compact: boolean) => (
+    <Button
+      variant="ghost"
+      className={cn(
+        'mb-1 w-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+        compact ? 'justify-center px-2' : 'justify-start'
+      )}
+      onClick={handleCopyToken}
+      title={compact ? 'Copiar token de API' : undefined}
+      aria-label="Copiar token de API"
+    >
+      <KeyRound className={cn('h-4 w-4', !compact && 'mr-2')} />
+      {!compact && 'Copiar token de API'}
+    </Button>
+  );
 
   const renderNavItem = (item: { name: string; href: string; icon: React.ElementType }, compact: boolean, onClose?: () => void) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -124,6 +170,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
                   {userRole === 'admin' ? 'Administrador' : userRole === 'teacher' ? 'Docente' : 'Estudiante'}
                 </p>
               </div>
+              {copyTokenButton(false)}
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -174,6 +221,7 @@ export function AppSidebar({ isCollapsed, onToggleCollapse }: AppSidebarProps) {
               </p>
             </div>
           )}
+          {copyTokenButton(isCollapsed)}
           <Button
             variant="ghost"
             className={cn(
