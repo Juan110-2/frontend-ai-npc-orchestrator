@@ -630,14 +630,10 @@ function SesionCard({ sesion }: { sesion: SesionWithOwner }) {
           <Badge variant={config.variant}>{config.label}</Badge>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+        <div className="mt-4 grid grid-cols-2 gap-4 text-center">
           <div>
             <p className="text-lg font-semibold">{sesion.state.turnCount}</p>
             <p className="text-xs text-muted-foreground">Turnos</p>
-          </div>
-          <div>
-            <p className="text-lg font-semibold">{sesion.state.coherenceScore}%</p>
-            <p className="text-xs text-muted-foreground">Coherencia</p>
           </div>
           <div>
             <p className="text-lg font-semibold">{sesion.state.activeRiskFlags.length}</p>
