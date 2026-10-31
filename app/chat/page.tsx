@@ -795,7 +795,7 @@ function ChatPageContent() {
         }
         if (data.should_close) {
           const kind = data.closing_kind
-          setSessionStatus(kind === 'crisis' || kind === 'crisis_riesgo' || kind === 'inappropriate' ? 'terminated' : 'completed')
+          setSessionStatus(kind === 'crisis' || kind === 'inappropriate' ? 'terminated' : 'completed')
           // El backend ya cerró la sesión vía SSE — solo detenemos el timer local
           const closeDelta = stopSegment()
           void flushDelta(closeDelta, timerSessionId.current)
@@ -811,8 +811,6 @@ function ChatPageContent() {
             toast.success("Sesión completada con éxito. El NPC se siente mejor.")
           } else if (kind === "crisis") {
             toast.error("Sesión terminada por crisis emocional del NPC.")
-          } else if (kind === "crisis_riesgo") {
-            toast.error("Sesión terminada por riesgo detectado en la conversación.")
           } else if (kind === "inappropriate") {
             toast.warning("Sesión terminada por conducta inadecuada.")
           } else {
