@@ -24,6 +24,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { SeverityGauge } from "@/components/severity-gauge"
+import dynamic from "next/dynamic"
+import { Box } from "lucide-react"
 import {
   Send,
   Clock,
@@ -300,6 +302,9 @@ function SessionContextPanel({
   )
 }
 
+// Se carga solo al abrir el modo 3D, para que el chat no descargue three.js
+const Sala3D = dynamic(() => import("@/components/sala-3d/sala-3d").then((m) => m.Sala3D), { ssr: false })
+
 function ChatPageContent() {
   const router = useRouter()
   const { userRole, user, isLoading: authLoading } = useAuth()
@@ -346,6 +351,7 @@ function ChatPageContent() {
   useEffect(() => { isOwnerRef.current = isOwner }, [isOwner])  // declarado antes del efecto del cronómetro
   const isActive = sessionStatus === "active"
   const canSend = isOwner && isActive
+  const [modo3d, setModo3d] = useState(false)
   const canFinalize = isActive && (isOwner || isAdmin || (Boolean(user?.id) && activeSession?.assigned_by === user?.id))
 
   useEffect(() => {
@@ -886,6 +892,12 @@ function ChatPageContent() {
                 {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
               </Badge>
               <div className="ml-auto flex items-center gap-1.5">
+                {sesion && (
+                  <Button variant="outline" size="sm" className="hidden h-8 rounded-full sm:inline-flex" onClick={() => setModo3d(true)}>
+                    <Box className="mr-1.5 h-3.5 w-3.5" />
+                    Modo 3D
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setTeacherViewOverride(prev => !prev)} title={effectiveTeacherView ? "Vista estudiante" : "Vista profesor"}>
                     {effectiveTeacherView ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -939,6 +951,12 @@ function ChatPageContent() {
                   {effectiveTeacherView ? <><EyeOff className="mr-2 h-4 w-4" />Vista estudiante</> : <><Eye className="mr-2 h-4 w-4" />Vista profesor</>}
                 </Button>
               )}
+              {sesion && (
+                <Button variant="outline" size="sm" onClick={() => setModo3d(true)}>
+                  <Box className="mr-2 h-4 w-4" />
+                  Modo 3D
+                </Button>
+              )}
               {canFinalize && (
                 <Button variant="destructive" size="sm" onClick={() => setFinalizeOpen(true)}>
                   <StopCircle className="mr-2 h-4 w-4" />
@@ -948,6 +966,22 @@ function ChatPageContent() {
             </div>
           </div>
         </header>
+
+        {modo3d && (
+          <Sala3D
+            severity={activeSession?.current_severity ?? escenario?.severity ?? 0}
+            npcText={[...messages].reverse().find((m) => m.role === "assistant")?.content ?? ""}
+            isLoading={isLoading}
+            puedeEscribir={canSend}
+            aviso={!isActive ? "La sesión terminó." : !isOwner ? "Estás viendo la sesión de un estudiante." : null}
+            inputValue={inputValue}
+            onInputChange={setInputValue}
+            onEnviar={() => handleSendMessage()}
+            mensajeFallido={Boolean(canRetry && messages[messages.length - 1]?.failed && !messages[messages.length - 1]?.noRetry)}
+            onReintentar={() => handleRetry(messages[messages.length - 1])}
+            onSalir={() => setModo3d(false)}
+          />
+        )}
 
         {/* Shared: finalizar */}
         <AlertDialog open={finalizeOpen} onOpenChange={setFinalizeOpen}>
