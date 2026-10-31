@@ -189,7 +189,9 @@ export default function AdminMetricsPage() {
                       <SelectItem value="orchestrator">Orchestrator</SelectItem>
                       <SelectItem value="classifier">Classifier</SelectItem>
                       <SelectItem value="evaluator">Evaluator</SelectItem>
+                      <SelectItem value="farewell_check">Farewell check</SelectItem>
                       <SelectItem value="bench">Bench</SelectItem>
+                      <SelectItem value="bench_v2">Bench v2</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={providerFilter} onValueChange={setProviderFilter}>
@@ -323,6 +325,9 @@ export default function AdminMetricsPage() {
                       <SelectItem value="orchestrator">Orchestrator</SelectItem>
                       <SelectItem value="classifier">Classifier</SelectItem>
                       <SelectItem value="evaluator">Evaluator</SelectItem>
+                      <SelectItem value="farewell_check">Farewell check</SelectItem>
+                      <SelectItem value="bench">Bench</SelectItem>
+                      <SelectItem value="bench_v2">Bench v2</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-1">

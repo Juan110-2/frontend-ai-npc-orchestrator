@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { DeleteCaseDialog } from '@/components/delete-case-dialog'
 import { PageHeader } from '@/components/page-header'
 import { OwnerFilterTabs, useOwnerFilter } from '@/components/owner-filter'
+import { normalizeSearch } from '@/lib/utils'
 import { SeverityGauge } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
@@ -64,9 +65,9 @@ export default function EscenariosPage() {
       ? items.filter((s) => !!user && s.created_by === user.id)
       : items
     if (!search.trim()) return scoped
-    const q = search.toLowerCase()
+    const q = normalizeSearch(search)
     return scoped.filter((s) =>
-      s.name.toLowerCase().includes(q) || s.context.toLowerCase().includes(q)
+      normalizeSearch(s.name).includes(q) || normalizeSearch(s.context).includes(q)
     )
   }, [items, search, owner, user])
 

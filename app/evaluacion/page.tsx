@@ -15,7 +15,7 @@ import { listEvaluations, type EvaluationListItem } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { Paginator, paginate } from "@/components/paginator"
 import { PageLoader, LoadingState } from "@/components/ui-states"
-import { cn } from "@/lib/utils"
+import { cn, normalizeSearch } from "@/lib/utils"
 import EvaluationDetail from "./detail"
 
 function EvaluacionRouter() {
@@ -103,10 +103,10 @@ function EvaluationList() {
   })() : []
 
   const filtered = rawCurrent.filter(e => {
-    const q = currentSearch.toLowerCase()
+    const q = normalizeSearch(currentSearch)
     const matchesSearch = !currentSearch.trim() ||
-      (e.patient_name ?? "").toLowerCase().includes(q) ||
-      (e.student_name ?? "").toLowerCase().includes(q)
+      normalizeSearch(e.patient_name ?? "").includes(q) ||
+      normalizeSearch(e.student_name ?? "").includes(q)
     const matchesAssigner = !isAll || assignerFilter === "all" || e.assigned_by_id === assignerFilter
     const matchesStudent = !isAll || studentFilter === "all" || e.student_id === studentFilter
     return matchesSearch && matchesAssigner && matchesStudent
@@ -163,7 +163,7 @@ function EvaluationList() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              Todas ({isAll ? rawAll.length : "…"})
+              Todas ({rawAll.length})
             </button>
           )}
         </div>

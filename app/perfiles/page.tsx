@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { DeleteCaseDialog } from '@/components/delete-case-dialog'
 import { PageHeader } from '@/components/page-header'
 import { OwnerFilterTabs, useOwnerFilter } from '@/components/owner-filter'
+import { normalizeSearch } from '@/lib/utils'
 import { SeverityRange } from '@/components/severity-gauge'
 import { Paginator, paginate } from '@/components/paginator'
 import { LoadingState } from '@/components/ui-states'
@@ -94,10 +95,10 @@ export default function PerfilesPage() {
       ? items.filter(({ profile }) => !!user && profile.created_by === user.id)
       : items
     if (!search.trim()) return scoped
-    const q = search.toLowerCase()
+    const q = normalizeSearch(search)
     return scoped.filter(({ profile }) =>
-      profile.name.toLowerCase().includes(q) ||
-      profile.description.toLowerCase().includes(q)
+      normalizeSearch(profile.name).includes(q) ||
+      normalizeSearch(profile.description).includes(q)
     )
   }, [items, search, owner, user])
 

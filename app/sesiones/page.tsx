@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -27,7 +27,7 @@ import { PageHeader } from '@/components/page-header';
 import { LoadingState } from '@/components/ui-states';
 import { SeverityGauge, SeverityRange } from '@/components/severity-gauge';
 import type { Sesion, SessionStatus } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, normalizeSearch } from '@/lib/utils';
 import {
   listProfiles, listScenarios, listSessions, listEvaluations,
   exportConversationJSON, startSession, listStudents, adminListUsers,
@@ -157,20 +157,20 @@ function NuevaSesionDialog({
   const filteredProfiles = profiles.filter(p =>
     (profileOwner === 'all' || isOwn(p.created_by)) &&
     (!profileSearch.trim() ||
-      p.name.toLowerCase().includes(profileSearch.toLowerCase()) ||
-      p.description.toLowerCase().includes(profileSearch.toLowerCase()))
+      normalizeSearch(p.name).includes(normalizeSearch(profileSearch)) ||
+      normalizeSearch(p.description).includes(normalizeSearch(profileSearch)))
   );
 
   const filteredScenarios = scenarios.filter(s =>
     (scenarioOwner === 'all' || isOwn(s.created_by)) &&
     (!scenarioSearch.trim() ||
-      s.name.toLowerCase().includes(scenarioSearch.toLowerCase()))
+      normalizeSearch(s.name).includes(normalizeSearch(scenarioSearch)))
   );
 
   const filteredStudents = students.filter(s => {
     if (!studentQuery.trim()) return true;
-    const q = studentQuery.toLowerCase();
-    return s.full_name?.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
+    const q = normalizeSearch(studentQuery);
+    return (s.full_name ? normalizeSearch(s.full_name).includes(q) : false) || normalizeSearch(s.email).includes(q);
   });
 
   const toggleStudent = (id: string) =>
@@ -767,6 +767,19 @@ export default function SesionesPage() {
   const [assignedTab, setAssignedTab] = useState('all');
   const [assignedPage, setAssignedPage] = useState(1);
 
+  // ── contadores totales, sin importar la pestaña de estado ──────────────────
+  const [myCount, setMyCount] = useState(0);
+  const [assignedCount, setAssignedCount] = useState(0);
+  const [allCount, setAllCount] = useState(0);
+
+  // ── lista completa de la sección, para buscar y filtrar en todas las páginas ─
+  const [fullList, setFullList] = useState<{ key: string; items: SesionWithOwner[] } | null>(null);
+  const [fullIsLoading, setFullIsLoading] = useState(false);
+  const [matchPage, setMatchPage] = useState(1);
+
+  // Solo se aplica la respuesta de la última petición de cada lista
+  const latestRequest = useRef({ mine: 0, assigned: 0, all: 0, full: 0 });
+
   // ── carga de referencia ────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
@@ -791,18 +804,20 @@ export default function SesionesPage() {
     sMap: Map<string, BackendScenario>,
     stMap: Map<string, BackendUserProfile>,
   ) => {
+    const request = ++latestRequest.current.mine;
     setMyIsLoading(true);
     try {
       const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
       const { items, total } = await listSessions({ view: 'mine', page, limit: PAGE_SIZE, status });
       const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      if (request !== latestRequest.current.mine) return;
       const evalMap = new Map(evals.map(e => [e.session_id, e]));
       setMySessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
       setMyTotal(total);
     } catch {
-      toast.error('No se pudieron cargar las sesiones.');
+      if (request === latestRequest.current.mine) toast.error('No se pudieron cargar las sesiones.');
     } finally {
-      setMyIsLoading(false);
+      if (request === latestRequest.current.mine) setMyIsLoading(false);
     }
   };
 
@@ -813,18 +828,20 @@ export default function SesionesPage() {
     sMap: Map<string, BackendScenario>,
     stMap: Map<string, BackendUserProfile>,
   ) => {
+    const request = ++latestRequest.current.assigned;
     setAssignedIsLoading(true);
     try {
       const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
       const { items, total } = await listSessions({ view: 'assigned', page, limit: PAGE_SIZE, status });
       const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      if (request !== latestRequest.current.assigned) return;
       const evalMap = new Map(evals.map(e => [e.session_id, e]));
       setAssignedSessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
       setAssignedTotal(total);
     } catch {
-      toast.error('No se pudieron cargar las sesiones asignadas.');
+      if (request === latestRequest.current.assigned) toast.error('No se pudieron cargar las sesiones asignadas.');
     } finally {
-      setAssignedIsLoading(false);
+      if (request === latestRequest.current.assigned) setAssignedIsLoading(false);
     }
   };
 
@@ -835,18 +852,20 @@ export default function SesionesPage() {
     sMap: Map<string, BackendScenario>,
     stMap: Map<string, BackendUserProfile>,
   ) => {
+    const request = ++latestRequest.current.all;
     setAllIsLoading(true);
     try {
       const status = (tab === 'active' || tab === 'completed' || tab === 'terminated') ? tab : undefined;
       const { items, total } = await listSessions({ page, limit: PAGE_SIZE, status });
       const evals = await listEvaluations({ session_ids: items.map(s => s.id) }).catch(() => []);
+      if (request !== latestRequest.current.all) return;
       const evalMap = new Map(evals.map(e => [e.session_id, e]));
       setAllSessions(items.map(s => mapSession(s, pMap, sMap, stMap, evalMap)));
       setAllTotal(total);
     } catch {
-      toast.error('No se pudieron cargar todas las sesiones.');
+      if (request === latestRequest.current.all) toast.error('No se pudieron cargar todas las sesiones.');
     } finally {
-      setAllIsLoading(false);
+      if (request === latestRequest.current.all) setAllIsLoading(false);
     }
   };
 
@@ -873,9 +892,6 @@ export default function SesionesPage() {
     void loadAllSessions(allPage, allTab, profileMap, scenarioMap, studentMap);
   }, [refLoaded, activeSection, allPage, allTab, reloadKey, profileMap, scenarioMap, studentMap]);
 
-  useEffect(() => { setMyPage(1); }, [myTab]);
-  useEffect(() => { setAssignedPage(1); }, [assignedTab]);
-  useEffect(() => { setAllPage(1); }, [allTab]);
   useEffect(() => { setAssignerFilter('all'); setAssigneeFilter('all'); }, [activeSection]);
 
   const refreshAll = () => {
@@ -887,7 +903,11 @@ export default function SesionesPage() {
   const currentSearch = isMine ? mySearch : isAll ? allSearch : assignedSearch;
   const setCurrentSearch = isMine ? setMySearch : isAll ? setAllSearch : setAssignedSearch;
   const currentTab = isMine ? myTab : isAll ? allTab : assignedTab;
-  const setCurrentTab = isMine ? setMyTab : isAll ? setAllTab : setAssignedTab;
+  const setCurrentTab = (tab: string) => {
+    if (isMine) { setMyTab(tab); setMyPage(1); }
+    else if (isAll) { setAllTab(tab); setAllPage(1); }
+    else { setAssignedTab(tab); setAssignedPage(1); }
+  };
   const currentPage = isMine ? myPage : isAll ? allPage : assignedPage;
   const setCurrentPage = isMine ? setMyPage : isAll ? setAllPage : setAssignedPage;
   const currentTotal = isMine ? myTotal : isAll ? allTotal : assignedTotal;
@@ -897,6 +917,52 @@ export default function SesionesPage() {
   const isAdmin = userRole === 'admin';
   // Los estudiantes no crean sesiones: solo realizan las que les asignan
   const canCreateSession = !authLoading && isTeacherOrAdmin;
+
+  // ── contadores ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (authLoading) return;
+    listSessions({ view: 'mine', limit: 1 }).then(r => setMyCount(r.total)).catch(() => {});
+    if (!isTeacherOrAdmin) return;
+    listSessions({ view: 'assigned', limit: 1 }).then(r => setAssignedCount(r.total)).catch(() => {});
+    if (isAdmin) listSessions({ limit: 1 }).then(r => setAllCount(r.total)).catch(() => {});
+  }, [authLoading, isTeacherOrAdmin, isAdmin, reloadKey]);
+
+  // ── lista completa: al buscar, y siempre en "Todas" por sus filtros de personas ─
+  const needsFullList = isAll || currentSearch.trim() !== '';
+  const fullKey = `${activeSection}|${currentTab}|${reloadKey}`;
+  const fullListReady = needsFullList && fullList?.key === fullKey;
+
+  useEffect(() => {
+    if (!refLoaded || !needsFullList || fullListReady) return;
+    const request = ++latestRequest.current.full;
+    const status = (currentTab === 'active' || currentTab === 'completed' || currentTab === 'terminated') ? currentTab : undefined;
+    const view = isAll ? undefined : isMine ? 'mine' as const : 'assigned' as const;
+    setFullIsLoading(true);
+    void (async () => {
+      try {
+        const collected: SesionWithOwner[] = [];
+        let page = 1;
+        let total = 0;
+        do {
+          const result = await listSessions({ view, page, limit: 100, status });
+          total = result.total;
+          if (result.items.length === 0) break;
+          const evals = await listEvaluations({ session_ids: result.items.map(s => s.id) }).catch(() => []);
+          const evalMap = new Map(evals.map(e => [e.session_id, e]));
+          collected.push(...result.items.map(s => mapSession(s, profileMap, scenarioMap, studentMap, evalMap)));
+          page += 1;
+        } while (collected.length < total);
+        if (request === latestRequest.current.full) setFullList({ key: fullKey, items: collected });
+      } catch {
+        if (request === latestRequest.current.full) toast.error('No se pudieron cargar todas las sesiones para filtrar.');
+      } finally {
+        if (request === latestRequest.current.full) setFullIsLoading(false);
+      }
+    })();
+    // Se vuelve a cargar solo si cambia la sección, la pestaña o los datos, no al escribir
+  }, [refLoaded, needsFullList, fullListReady, fullKey]);
+
+  useEffect(() => { setMatchPage(1); }, [currentSearch, assignerFilter, assigneeFilter, fullKey]);
 
   // Lee ?nueva=1&perfil=<id>, abre el modal y limpia la URL para que recargar no lo reabra.
   useEffect(() => {
@@ -908,9 +974,11 @@ export default function SesionesPage() {
   }, [refLoaded, canCreateSession, router]);
 
   // Build assigner/assignee option lists from currently loaded sessions
+  const sourceSessions = fullListReady ? fullList.items : currentSessions;
+
   const uniqueAssigners = isAll ? (() => {
     const map = new Map<string, string>();
-    allSessions.forEach(s => {
+    sourceSessions.forEach(s => {
       if (s.assignedBy && s.assignedBy !== currentUserId) {
         const u = staffMap.get(s.assignedBy);
         map.set(s.assignedBy, u?.full_name ?? u?.email ?? s.assignedBy.slice(0, 8));
@@ -921,7 +989,7 @@ export default function SesionesPage() {
 
   const uniqueAssignees = isAll ? (() => {
     const map = new Map<string, string>();
-    allSessions.forEach(s => {
+    sourceSessions.forEach(s => {
       if (s.userId && s.userId !== currentUserId) {
         const u = studentMap.get(s.userId) ?? staffMap.get(s.userId);
         map.set(s.userId, u?.full_name ?? u?.email ?? s.userId.slice(0, 8));
@@ -930,16 +998,22 @@ export default function SesionesPage() {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   })() : [];
 
-  const filteredSessions = currentSessions.filter(s => {
-    const q = currentSearch.toLowerCase();
+  const filteredSessions = sourceSessions.filter(s => {
+    const q = normalizeSearch(currentSearch);
     const matchesSearch = !currentSearch.trim() ||
-      s.perfilName.toLowerCase().includes(q) ||
-      s.escenarioName.toLowerCase().includes(q) ||
-      (s.assignedToName?.toLowerCase().includes(q) ?? false);
+      normalizeSearch(s.perfilName).includes(q) ||
+      normalizeSearch(s.escenarioName).includes(q) ||
+      (s.assignedToName ? normalizeSearch(s.assignedToName).includes(q) : false);
     const matchesAssigner = !isAll || assignerFilter === 'all' || s.assignedBy === assignerFilter;
     const matchesAssignee = !isAll || assigneeFilter === 'all' || s.userId === assigneeFilter;
     return matchesSearch && matchesAssigner && matchesAssignee;
   });
+
+  const lastMatchPage = Math.max(1, Math.ceil(filteredSessions.length / PAGE_SIZE));
+  const shownMatchPage = Math.min(matchPage, lastMatchPage);
+  const visibleSessions = fullListReady
+    ? filteredSessions.slice((shownMatchPage - 1) * PAGE_SIZE, shownMatchPage * PAGE_SIZE)
+    : filteredSessions;
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -964,7 +1038,7 @@ export default function SesionesPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-semibold">{myTotal}</p>
+                <p className="text-2xl font-semibold">{myCount}</p>
                 <p className="text-xs text-muted-foreground">Mis sesiones</p>
               </div>
               <div className="rounded-lg bg-primary/10 p-2">
@@ -978,7 +1052,7 @@ export default function SesionesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-2xl font-semibold">{assignedTotal}</p>
+                  <p className="text-2xl font-semibold">{assignedCount}</p>
                   <p className="text-xs text-muted-foreground">Asignadas</p>
                 </div>
                 <div className="rounded-lg bg-success/10 p-2">
@@ -992,7 +1066,7 @@ export default function SesionesPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-semibold">{myTotal + assignedTotal}</p>
+                <p className="text-2xl font-semibold">{myCount + assignedCount}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
               <div className="rounded-lg bg-muted p-2">
@@ -1015,7 +1089,7 @@ export default function SesionesPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            Mis sesiones ({myTotal})
+            Mis sesiones ({myCount})
           </button>
           <button
             onClick={() => setActiveSection('assigned')}
@@ -1026,7 +1100,7 @@ export default function SesionesPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            Asignadas por mí ({assignedTotal})
+            Asignadas por mí ({assignedCount})
           </button>
           {isAdmin && (
             <button
@@ -1038,7 +1112,7 @@ export default function SesionesPage() {
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               )}
             >
-              Todas ({isAll ? allTotal : '…'})
+              Todas ({allCount})
             </button>
           )}
         </div>
@@ -1094,7 +1168,7 @@ export default function SesionesPage() {
           <div className="relative sm:w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar en esta página..."
+              placeholder="Buscar sesiones..."
               value={currentSearch}
               onChange={(e) => setCurrentSearch(e.target.value)}
               className="pl-9"
@@ -1104,9 +1178,9 @@ export default function SesionesPage() {
       </div>
 
       {/* Grid */}
-      {currentIsLoading ? (
+      {currentIsLoading || (needsFullList && fullIsLoading) ? (
         <Card><CardContent><LoadingState message="Cargando sesiones..." className="py-8" /></CardContent></Card>
-      ) : currentTotal === 0 && !currentSearch ? (
+      ) : currentTotal === 0 && currentTab === 'all' && !currentSearch ? (
         <Card>
           <CardContent className="p-8 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -1128,17 +1202,19 @@ export default function SesionesPage() {
       ) : filteredSessions.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            {currentSearch ? 'Sin resultados para tu búsqueda en esta página.' : 'No hay sesiones en esta categoría.'}
+            {currentSearch ? 'Sin resultados para tu búsqueda.' : 'No hay sesiones en esta categoría.'}
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredSessions.map((s) => (
+            {visibleSessions.map((s) => (
               <SesionCard key={s.id} sesion={s} />
             ))}
           </div>
-          {!currentSearch && (
+          {fullListReady ? (
+            <Paginator total={filteredSessions.length} page={shownMatchPage} onPageChange={setMatchPage} />
+          ) : (
             <Paginator total={currentTotal} page={currentPage} onPageChange={setCurrentPage} />
           )}
         </>
