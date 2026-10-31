@@ -11,6 +11,7 @@ const NPC_POSITION = new THREE.Vector3(0.2, 0, -1.6);
 const NPC_DEFAULT_YAW = 0;
 const NPC_FACE_DISTANCE = 5;
 const NPC_LABEL_HEIGHT = 2.15;
+const PLAYER_LABEL_HEIGHT = 2.15;
 const CAMERA_OFFSET = new THREE.Vector3(0, 5.2, 6.6);
 const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
@@ -151,7 +152,7 @@ function resolveCollisions(pos, radius, obstacles) {
  */
 /**
  * @param {HTMLElement} container
- * @param {{ npcSeverity?: number, onFrame?: (frame: { near: boolean, width: number, height: number, anchor: { x: number, y: number, visible: boolean } }) => void }} [options]
+ * @param {{ npcSeverity?: number, onFrame?: (frame: { near: boolean, width: number, height: number, anchor: { x: number, y: number, visible: boolean }, playerAnchor: { x: number, y: number, visible: boolean } }) => void }} [options]
  */
 export function createScene(container, { npcSeverity = 0, onFrame } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -352,16 +353,20 @@ export function createScene(container, { npcSeverity = 0, onFrame } = {}) {
     walls.west.visible = camPos.x >= -ROOM.halfX;
 
     if (onFrame) {
-      anchor.set(NPC_POSITION.x, NPC_LABEL_HEIGHT - npc.severity * 0.03, NPC_POSITION.z).project(camera);
+      const aPantalla = (x, y, z) => {
+        anchor.set(x, y, z).project(camera);
+        return {
+          x: (anchor.x * 0.5 + 0.5) * width,
+          y: (-anchor.y * 0.5 + 0.5) * height,
+          visible: anchor.z < 1,
+        };
+      };
       onFrame({
         near: distance < NEAR_DISTANCE,
         width,
         height,
-        anchor: {
-          x: (anchor.x * 0.5 + 0.5) * width,
-          y: (-anchor.y * 0.5 + 0.5) * height,
-          visible: anchor.z < 1,
-        },
+        anchor: aPantalla(NPC_POSITION.x, NPC_LABEL_HEIGHT - npc.severity * 0.03, NPC_POSITION.z),
+        playerAnchor: aPantalla(playerPos.x, PLAYER_LABEL_HEIGHT, playerPos.z),
       });
     }
   }

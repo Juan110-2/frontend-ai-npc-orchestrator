@@ -42,7 +42,7 @@ export async function sendConversationMessage(sessionId: string, content: string
 export type StreamDonePayload = {
   severity: number
   should_close: boolean
-  closing_kind: 'success' | 'crisis' | 'inappropriate' | null
+  closing_kind: 'success' | 'crisis' | 'crisis_riesgo' | 'inappropriate' | null
   metrics?: {
     provider: string
     model: string

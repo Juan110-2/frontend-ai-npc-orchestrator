@@ -208,7 +208,7 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
             <MetricBox label="Severidad final" value={metrics.severity_final != null ? Number(metrics.severity_final).toFixed(1) : "—"} />
             <MetricBox label="Alertas de riesgo" value={metrics.risk_alerts_detected ?? 0} icon={<AlertTriangle className="h-4 w-4 text-destructive" />} />
             <MetricBox
-              label="Revelaciones detectadas"
+              label="Preguntas sobre riesgo"
               value={metrics.risk_check_alerts_detected ?? 0}
               icon={<ShieldAlert className="h-4 w-4 text-amber-500" />}
             />
@@ -235,8 +235,10 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
           ) : (
             <ScrollArea className="h-96 pr-3">
               <div className="space-y-3">
-                {transcript.map((m) => {
+                {transcript.map((m, i) => {
                   const isStudent = m.role === "trainee"
+                  // La marca se guarda en la respuesta del NPC, pero la provoca el mensaje del estudiante
+                  const marcas = isStudent ? transcript[i + 1]?.risk_flags ?? [] : []
                   return (
                     <div
                       key={m.id}
@@ -265,9 +267,23 @@ export default function EvaluationDetail({ sessionId }: { sessionId: string }) {
                           </span>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {new Date(m.created_at).toLocaleTimeString()}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(m.created_at).toLocaleTimeString()}
+                          </p>
+                          {marcas.includes("risk") && (
+                            <span className="flex items-center gap-1 text-[10px] font-medium text-destructive">
+                              <AlertTriangle className="h-3 w-3" />
+                              Alerta de riesgo
+                            </span>
+                          )}
+                          {marcas.includes("risk_check") && (
+                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                              <ShieldAlert className="h-3 w-3" />
+                              Pregunta sobre riesgo
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )

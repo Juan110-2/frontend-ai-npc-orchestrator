@@ -9,3 +9,8 @@ export function cn(...inputs: ClassValue[]) {
 export function normalizeSearch(value: string) {
   return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
+
+/** Milisegundos para leer un mensaje con calma: 70 ms por carácter, mínimo 5 s. */
+export function tiempoDeLectura(texto: string) {
+  return Math.max(5000, texto.length * 70)
+}

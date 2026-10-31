@@ -58,6 +58,7 @@ import {
 } from "@/lib/api"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { tiempoDeLectura } from "@/lib/utils"
 
 
 interface ChatMessage {
@@ -70,10 +71,6 @@ interface ChatMessage {
   failed?: boolean
   /** El fallo no se resuelve reintentando (sesión cerrada, sin acceso, etc.) */
   noRetry?: boolean
-  metadata?: {
-    emotionalState?: string
-    riskFlags?: string[]
-  }
 }
 
 function mapHistory(history: BackendConversationMessage[]): ChatMessage[] {
@@ -83,9 +80,6 @@ function mapHistory(history: BackendConversationMessage[]): ChatMessage[] {
     role: item.role === "trainee" ? "user" : item.role === "patient" ? "assistant" : "system",
     content: item.content,
     timestamp: item.created_at,
-    metadata: {
-      riskFlags: item.risk_flags,
-    },
   }))
 }
 
@@ -334,6 +328,7 @@ function ChatPageContent() {
   const timerSessionId = useRef<string | null>(null)  // sessionId activo en el timer
   const accessTokenRef = useRef<string | null>(null)  // JWT disponible de forma síncrona para el flush al cerrar
 
+  const cierreTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null)
   const mobileTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -455,6 +450,32 @@ function ChatPageContent() {
       }
     })()
   }, [activeSession?.id])
+
+  // Quien supervisa la sesión de otro la sigue en vivo. El tiempo avanza cuando el estudiante lo reporta (cada 30 s o al enviar).
+  useEffect(() => {
+    const sid = activeSession?.id
+    if (!sid || !isActive || isOwner) return
+    let consultando = false
+    const actualizar = async () => {
+      if (consultando || document.visibilityState !== "visible") return
+      consultando = true
+      try {
+        const [session, history] = await Promise.all([getSession(sid), getConversationHistory(sid)])
+        setActiveSession(session)
+        setSessionStatus(session.status ?? (session.ended_at ? "completed" : "active"))
+        setAccSeconds(session.accumulated_seconds ?? 0)
+        // Solo si hay mensajes nuevos: reemplazarlos siempre movería el scroll de quien está leyendo
+        setMessages(prev => (prev[prev.length - 1]?.id === history[history.length - 1]?.id ? prev : mapHistory(history)))
+      } catch { /* se reintenta en el siguiente ciclo */ } finally {
+        consultando = false
+      }
+    }
+    const intervalo = setInterval(() => void actualizar(), 4000)
+    return () => clearInterval(intervalo)
+  }, [activeSession?.id, isActive, isOwner])
+
+  // Si se sale de la página antes de tiempo, no debe llevarlo a la evaluación
+  useEffect(() => () => clearTimeout(cierreTimerRef.current), [])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -677,6 +698,7 @@ function ChatPageContent() {
 
     const assistantId = `assistant-${Date.now()}`
     let placeholderCreated = false
+    let respuestaCompleta = ""
 
     // El servidor confirmó que descartó el turno (o no guardó nada): se quita la burbuja parcial
     // del paciente y el mensaje del estudiante queda marcado para poder reintentarlo.
@@ -745,6 +767,7 @@ function ChatPageContent() {
       const handle = await connectConversationStream(sessionForMessage.id, messageText)
 
       handle.onChunk((text) => {
+        respuestaCompleta += text
         if (!placeholderCreated) {
           placeholderCreated = true
           setIsLoading(false)
@@ -772,7 +795,7 @@ function ChatPageContent() {
         }
         if (data.should_close) {
           const kind = data.closing_kind
-          setSessionStatus(kind === 'crisis' || kind === 'inappropriate' ? 'terminated' : 'completed')
+          setSessionStatus(kind === 'crisis' || kind === 'crisis_riesgo' || kind === 'inappropriate' ? 'terminated' : 'completed')
           // El backend ya cerró la sesión vía SSE — solo detenemos el timer local
           const closeDelta = stopSegment()
           void flushDelta(closeDelta, timerSessionId.current)
@@ -788,14 +811,17 @@ function ChatPageContent() {
             toast.success("Sesión completada con éxito. El NPC se siente mejor.")
           } else if (kind === "crisis") {
             toast.error("Sesión terminada por crisis emocional del NPC.")
+          } else if (kind === "crisis_riesgo") {
+            toast.error("Sesión terminada por riesgo detectado en la conversación.")
           } else if (kind === "inappropriate") {
             toast.warning("Sesión terminada por conducta inadecuada.")
           } else {
             toast("Sesión finalizada.")
           }
-          setTimeout(() => {
+          // Se da tiempo de leer la despedida del NPC antes de pasar a la evaluación
+          cierreTimerRef.current = setTimeout(() => {
             router.push(`/evaluacion?sesion=${sessionForMessage!.id}`)
-          }, 2500)
+          }, tiempoDeLectura(respuestaCompleta))
         }
       })
 
@@ -899,7 +925,7 @@ function ChatPageContent() {
                   </Button>
                 )}
                 {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setTeacherViewOverride(prev => !prev)} title={effectiveTeacherView ? "Vista estudiante" : "Vista profesor"}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setTeacherViewOverride(!effectiveTeacherView)} title={effectiveTeacherView ? "Vista estudiante" : "Vista profesor"}>
                     {effectiveTeacherView ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 )}
@@ -947,7 +973,7 @@ function ChatPageContent() {
                 {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
               </Badge>
               {isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => setTeacherViewOverride(prev => !prev)}>
+                <Button variant="outline" size="sm" onClick={() => setTeacherViewOverride(!effectiveTeacherView)}>
                   {effectiveTeacherView ? <><EyeOff className="mr-2 h-4 w-4" />Vista estudiante</> : <><Eye className="mr-2 h-4 w-4" />Vista profesor</>}
                 </Button>
               )}
@@ -971,6 +997,9 @@ function ChatPageContent() {
           <Sala3D
             severity={activeSession?.current_severity ?? escenario?.severity ?? 0}
             npcText={[...messages].reverse().find((m) => m.role === "assistant")?.content ?? ""}
+            estudianteId={[...messages].reverse().find((m) => m.role === "user")?.id ?? null}
+            estudianteText={[...messages].reverse().find((m) => m.role === "user")?.content ?? ""}
+            estudianteTieneLaPalabra={messages[messages.length - 1]?.role === "user"}
             isLoading={isLoading}
             puedeEscribir={canSend}
             aviso={!isActive ? "La sesión terminó." : !isOwner ? "Estás viendo la sesión de un estudiante." : null}
@@ -980,12 +1009,35 @@ function ChatPageContent() {
             mensajeFallido={Boolean(canRetry && messages[messages.length - 1]?.failed && !messages[messages.length - 1]?.noRetry)}
             onReintentar={() => handleRetry(messages[messages.length - 1])}
             onSalir={() => setModo3d(false)}
+            panel={effectiveTeacherView ? (
+              <>
+                <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-mono text-sm font-medium">{formatTime(displaySeconds)}</span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <SeverityGauge
+                    level={activeSession?.current_severity ?? escenario?.severity ?? 0}
+                    size="sm"
+                    showValue
+                  />
+                </div>
+                <Badge variant={sessionStatus === "active" ? "default" : sessionStatus === "terminated" ? "destructive" : "outline"}>
+                  {sessionStatus === "active" ? "En curso" : sessionStatus === "terminated" ? "Terminada" : "Finalizada"}
+                </Badge>
+                {canFinalize && (
+                  <Button variant="destructive" size="sm" onClick={() => setFinalizeOpen(true)}>
+                    <StopCircle className="mr-2 h-4 w-4" />
+                    Finalizar
+                  </Button>
+                )}
+              </>
+            ) : null}
           />
         )}
 
         {/* Shared: finalizar */}
         <AlertDialog open={finalizeOpen} onOpenChange={setFinalizeOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="z-[70]">
             <AlertDialogHeader>
               <AlertDialogTitle>¿Finalizar la sesión?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -1071,12 +1123,6 @@ function ChatPageContent() {
                                 )}
                               </span>
                             )}
-                            {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
-                              <Badge variant="destructive" className="gap-1 text-[10px]">
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                Alerta
-                              </Badge>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1122,12 +1168,6 @@ function ChatPageContent() {
                                   </button>
                                 )}
                               </span>
-                            )}
-                            {message.metadata?.riskFlags && message.metadata.riskFlags.length > 0 && (
-                              <Badge variant="destructive" className="gap-1 text-xs">
-                                <AlertTriangle className="h-3 w-3" />
-                                Alerta
-                              </Badge>
                             )}
                           </div>
                         </div>
